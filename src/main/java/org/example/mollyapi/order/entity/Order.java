@@ -130,6 +130,7 @@ public class Order {
     public void addPayment(Payment payment) {
         if (payment == null) return;
 
+        if (this.payments == null) this.payments = new ArrayList<>();
         this.payments.add(payment);
         this.paymentId = payment.getPaymentKey();
         this.paymentType = payment.getPaymentType();
@@ -145,5 +146,21 @@ public class Order {
 
     public void setPointSave(int point) {
         this.pointSave = point;
+    }
+
+    public void validateExpiration() {
+        if (expirationTime.isBefore(LocalDateTime.now())) {
+            // 이 경우, 주문 객체 내부에서 failOrder를 호출할 수 있다면 호출하거나,
+            // 주문 실패 처리를 별도 서비스에서 호출 후 예외를 던지도록 할 수 있다.
+            throw new IllegalStateException("결제 가능 시간이 초과되었습니다. 주문을 다시 생성해주세요.");
+        }
+    }
+
+    public boolean isPending(){
+        return status.equals(OrderStatus.PENDING);
+    }
+
+    public boolean isCanceled(){
+        return status.equals(OrderStatus.CANCELED);
     }
 }
