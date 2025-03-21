@@ -3,13 +3,6 @@ package org.example.mollyapi.payment.service.impl;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.example.mollyapi.cart.entity.Cart;
-import org.example.mollyapi.cart.repository.CartRepository;
-import org.example.mollyapi.cart.service.CartService;
 import org.example.mollyapi.common.exception.CustomException;
 import org.example.mollyapi.common.exception.error.impl.OrderError;
 import org.example.mollyapi.common.exception.error.impl.PaymentError;
@@ -17,7 +10,6 @@ import org.example.mollyapi.common.exception.error.impl.UserError;
 import org.example.mollyapi.order.entity.Order;
 import org.example.mollyapi.order.repository.OrderRepository;
 import org.example.mollyapi.payment.dto.request.*;
-import org.example.mollyapi.order.type.OrderStatus;
 import org.example.mollyapi.payment.dto.request.PaymentCancelReqDto;
 import org.example.mollyapi.payment.dto.request.TossCancelReqDto;
 import org.example.mollyapi.payment.dto.request.TossConfirmReqDto;
@@ -25,6 +17,8 @@ import org.example.mollyapi.payment.dto.response.PaymentInfoResDto;
 import org.example.mollyapi.payment.dto.response.TossCancelResDto;
 import org.example.mollyapi.payment.dto.response.TossConfirmResDto;
 import org.example.mollyapi.payment.entity.Payment;
+import org.example.mollyapi.payment.event.event.PaymentApprovedEvent;
+import org.example.mollyapi.payment.event.event.PaymentFailedEvent;
 import org.example.mollyapi.payment.exception.RetryablePaymentException;
 import org.example.mollyapi.payment.repository.PaymentRepository;
 import org.example.mollyapi.payment.service.PaymentService;
@@ -33,19 +27,15 @@ import org.example.mollyapi.payment.util.PaymentWebClientUtil;
 import org.example.mollyapi.user.entity.User;
 import org.example.mollyapi.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.io.IOError;
-import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -59,7 +49,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentWebClientUtil paymentWebClientUtil;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
-    private final PaymentSaveService paymentSaveService;
+    private final ApplicationEventPublisher publisher;
 
     @Value("${secret.payment-api-key}")
     private String apiKey;
@@ -89,47 +79,67 @@ public class PaymentServiceImpl implements PaymentService {
                 .collect(Collectors.toList());
     }
 
+    public void isApprovedPayment(String tossOrderID) {
+        if (paymentRepository.existsByTossOrderIdAndPaymentStatus(tossOrderID, PaymentStatus.APPROVED)){
+            throw new CustomException(PaymentError.PAYMENT_ALREADY_PROCESSED);
+        }
+    }
+
     /*
         결제 요청 실행 (API 호출 및 결제 데이터 저장)
      */
-    @Retryable(
-            include = {RetryablePaymentException.class},
-//            exclude = {CustomException.class},
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 1000, multiplier = 2)
-    )
+    @Transactional
     public Payment processPayment(Long userId,
                                   PaymentConfirmReqDto requestDto) {
-        System.out.println("----------------------------------결제 트랜잭션 시작----------------------------------");
-        // 1. 결제 엔티티 생성
-        Payment payment = createOrGetPayment(userId, requestDto.orderId(), requestDto.tossOrderId(), requestDto.paymentKey(), requestDto.paymentType(), requestDto.amount());
 
-        // 2. toss payments API 호출
+        ///  승인된 주문인지 확인
+        isApprovedPayment(requestDto.tossOrderId());
+
+        // 1. 결제 엔티티 생성
+        Payment payment = createPayment(userId, requestDto.orderId(), requestDto.tossOrderId(), requestDto.paymentKey(), requestDto.paymentType(), requestDto.amount());
+        paymentRepository.save(payment);
+
+        // 2. toss payments API 호출 (멱등성 헤더 추가하기)
         ResponseEntity<TossConfirmResDto> response = tossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
                 requestDto.paymentKey(),
                 requestDto.amount()));
 
-
         // 3. 응답 검증
         // pending -> 자동 재시도, fail -> 수동 재시도, approve -> 완료
         switch (getStatusCodeToString(response)) {
-            case "200" -> payment.successPayment();
+            case "200" -> {
+                PaymentApprovedEvent event = new PaymentApprovedEvent(requestDto.tossOrderId(),payment.getPaymentKey());
+                publisher.publishEvent(event);
+//                payment.successPayment();
+            }
             case "400" -> {
-                payment.failPayment("결제 실패");
-                paymentSaveService.persistPayment(payment);
-                throw new CustomException(OrderError.PAYMENT_RETRY_REQUIRED);
+//                payment.failPayment("결제 실패");
+                publisher.publishEvent(new PaymentFailedEvent(payment.getId(),PaymentError.PAYMENT_AMOUNT_MISMATCH));
             }
             case "500" -> {
-                payment.pendingPayment();
-                paymentSaveService.persistPayment(payment);
-                throw new RetryablePaymentException("서버 내부 오류");
+//                payment.pendingPayment();
+                publisher.publishEvent(new PaymentFailedEvent(payment.getId(),PaymentError.PAYMENT_GATEWAY_ERROR));
             }
         }
-        paymentRepository.save(payment);
-        log.info("processPayment = {}", payment);
-
-        System.out.println("----------------------------------결제 트랜잭션 종료----------------------------------");
         return payment;
+    }
+
+    public void approvePayment(String paymentKey) {
+        Payment payment = paymentRepository.findByPaymentKey(paymentKey)
+                .orElseThrow(() -> new CustomException(PaymentError.PAYMENT_NOT_FOUND));
+
+        payment.approvePayment();
+
+        paymentRepository.save(payment);
+    }
+
+    public void failPayment(Long paymentId, PaymentError paymentError) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new CustomException(PaymentError.PAYMENT_NOT_FOUND));
+
+        payment.failPayment(paymentError.getMessage());
+
+        paymentRepository.save(payment);
     }
 
     @Retryable(
@@ -156,7 +166,7 @@ public class PaymentServiceImpl implements PaymentService {
         // 3. 응답 검증
         // pending -> 자동 재시도, fail -> 수동 재시도, approve -> 완료
         switch (status) {
-            case "200" -> payment.successPayment();
+            case "200" -> payment.approvePayment();
             case "400" -> {
                 log.info("status 400");
                 payment.failPayment("결제 실패");
@@ -178,26 +188,13 @@ public class PaymentServiceImpl implements PaymentService {
         결제 요청 생성
      */
     @Override
-    public Payment createOrGetPayment(Long userId, Long orderId, String tossOrderId,
+    public Payment createPayment(Long userId, Long orderId, String tossOrderId,
                                  String paymentKey, String paymentType, Long amount) {
-        log.info("createOrGetPayment 실행");
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(UserError.NOT_EXISTS_USER));
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new CustomException(PaymentError.ORDER_NOT_FOUND));
 
-        Optional<Payment> existingPayment = paymentRepository.findByPaymentKey(paymentKey);
-        if (existingPayment.isPresent()){
-            Payment payment = existingPayment.get();
-            switch (payment.getStatus()) {
-                case APPROVED -> {
-                    throw new CustomException(PaymentError.PAYMENT_ALREADY_PROCESSED);
-                }
-                case PENDING, FAILED -> {
-                    return payment;
-                }
-            }
-        }
         return Payment.create(user, order, tossOrderId, paymentKey, paymentType, amount);
     }
 

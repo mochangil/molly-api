@@ -1,5 +1,6 @@
 package org.example.mollyapi.payment.service;
 
+import org.example.mollyapi.common.exception.error.impl.PaymentError;
 import org.example.mollyapi.delivery.dto.DeliveryReqDto;
 import org.example.mollyapi.payment.dto.request.PaymentCancelReqDto;
 import org.example.mollyapi.payment.dto.request.PaymentConfirmReqDto;
@@ -21,13 +22,9 @@ public interface PaymentService {
 
     Payment processPaymentTest(Long userId, PaymentConfirmReqDto requestDto, String status);
 
-//    public Payment processPayment(User user, Order order, PaymentRequestDto requestDto);
+    public void approvePayment(String paymentKey);
 
-//    //결제 성공 절차
-//    public void successPayment(Payment payment, String tossOrderId,Integer point, String deliveryInfoJson);
-
-//    //결제 실패 절차
-//    public void failPayment(Payment payment, String tossOrderId, String failureReason);
+    public void failPayment(Long paymentId, PaymentError error);
 
     //결제 취소 절차
     public boolean cancelPayment(Long userId, PaymentCancelReqDto paymentCancelReqDto, PaymentStatus paymentStatus);
@@ -42,7 +39,7 @@ public interface PaymentService {
     //userId로 모든 결제정보 찾기
     public List<PaymentInfoResDto> findUserPayments(Long userId);
 
-    public Payment createOrGetPayment(Long userId, Long orderId, String tossOrderId, String paymentKey, String paymentType, Long amount);
+    public Payment createPayment(Long userId, Long orderId, String tossOrderId, String paymentKey, String paymentType, Long amount);
 
     Payment retryPayment(Long userId, String tossOrderId, String paymentKey);
 }
