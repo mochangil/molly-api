@@ -26,7 +26,8 @@ public record OrderHistoryResponseDto(
             OrderStatus orderStatus,
             String orderedAt,
             Long paymentAmount,
-            String deliveryStatus
+            String deliveryStatus,
+            List<OrderDetailWithReviewResponseDto> orderDetails
     ) {
         private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -38,8 +39,10 @@ public record OrderHistoryResponseDto(
                     order.getStatus(),
                     order.getOrderedAt() != null ? order.getOrderedAt().format(FORMATTER) : null,
                     paymentAmount,
-                    order.getDelivery() != null ? order.getDelivery().getStatus().name() : null
-            );
+                    order.getDelivery() != null ? order.getDelivery().getStatus().name() : null,
+                    order.getOrderDetails().stream()
+                            .map(orderDetail -> OrderDetailWithReviewResponseDto.from(order.getUser().getUserId(), orderDetail, reviewRepository))
+                            .collect(Collectors.toList()));
         }
     }
 }
