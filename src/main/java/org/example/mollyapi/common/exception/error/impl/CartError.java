@@ -13,9 +13,8 @@ public enum CartError implements CustomError {
     EMPTY_CART(HttpStatus.NO_CONTENT, "장바구니가 비었습니다."),
     FAIL_UPDATE(HttpStatus.INTERNAL_SERVER_ERROR, "변경 사항 업데이트에 실패했습니다."),
     FAIL_DELETE(HttpStatus.INTERNAL_SERVER_ERROR, "장바구니 삭제에 실패했습니다."),
-    NOT_EXIST_CART(HttpStatus.BAD_REQUEST, "요청 하신 내역에 문제가 발생했습니다."),
-    NOT_CHANGED(HttpStatus.NO_CONTENT, "변경된 내역이 없습니다."),
-    MIN_CART(HttpStatus.BAD_REQUEST, "상품은 1개부터 담을 수 있습니다.")
+    EXIST_CART(HttpStatus.CONFLICT, "해당 상품이 이미 장바구니에 존재합니다."),
+    NOT_EXIST_CART(HttpStatus.BAD_REQUEST, "요청 하신 내역에 문제가 발생했습니다.")
     ;
 
     private final HttpStatus status;

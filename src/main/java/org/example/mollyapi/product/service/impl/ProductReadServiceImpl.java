@@ -1,4 +1,4 @@
-package org.example.mollyapi.product.service;
+package org.example.mollyapi.product.service.impl;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +15,8 @@ import org.example.mollyapi.product.entity.Product;
 import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.enums.OrderBy;
 import org.example.mollyapi.product.repository.ProductRepository;
+import org.example.mollyapi.product.service.CategoryService;
+import org.example.mollyapi.product.service.ProductReadService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
