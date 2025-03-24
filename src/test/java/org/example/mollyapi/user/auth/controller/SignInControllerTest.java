@@ -43,7 +43,7 @@ class SignInControllerTest {
         String inputPassword = "qwer1234";
         String inputEmail = "test@example.com";
 
-        SignInReqDto request = new SignInReqDto(inputEmail, inputPassword, null);
+        SignInReqDto request = new SignInReqDto(inputEmail, inputPassword);
 
 
         SignInResDto result = new SignInResDto("testAccessToken", List.of(Role.BUY));
@@ -69,7 +69,7 @@ class SignInControllerTest {
         String inputPassword = "qwer1234";
         String inputEmail = null;
 
-        SignInReqDto request = new SignInReqDto(inputEmail, inputPassword, null);
+        SignInReqDto request = new SignInReqDto(inputEmail, inputPassword);
 
 
         SignInResDto result = new SignInResDto("testAccessToken", List.of(Role.BUY));
@@ -95,7 +95,7 @@ class SignInControllerTest {
         String inputPassword = "qwer1234";
         String inputEmail = "qwer2341235";
 
-        SignInReqDto request = new SignInReqDto(inputEmail, inputPassword, null);
+        SignInReqDto request = new SignInReqDto(inputEmail, inputPassword);
 
 
         SignInResDto result = new SignInResDto("testAccessToken", List.of(Role.BUY));
@@ -121,7 +121,7 @@ class SignInControllerTest {
         String inputPassword = null;
         String inputEmail = "test@example.com";
 
-        SignInReqDto request = new SignInReqDto(inputEmail, inputPassword, null);
+        SignInReqDto request = new SignInReqDto(inputEmail, inputPassword);
 
 
         SignInResDto result = new SignInResDto("testAccessToken", List.of(Role.BUY));

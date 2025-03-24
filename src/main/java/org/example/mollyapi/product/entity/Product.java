@@ -56,7 +56,7 @@ public class Product extends Base {
             String description,
             User user
     ) {
-        this.id = id;;
+        this.id = TsidCreator.getTsid().toLong();;
         this.category = category;
         this.brandName = brandName;
         this.productName = productName;
