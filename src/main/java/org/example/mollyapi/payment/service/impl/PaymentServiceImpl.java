@@ -30,6 +30,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.retry.annotation.Backoff;
@@ -99,8 +100,12 @@ public class PaymentServiceImpl implements PaymentService {
         Payment payment = createPayment(userId, requestDto.orderId(), requestDto.tossOrderId(), requestDto.paymentKey(), requestDto.paymentType(), requestDto.amount());
         paymentRepository.save(payment);
 
-        // 2. toss payments API 호출 (멱등성 헤더 추가하기)
-        ResponseEntity<TossConfirmResDto> response = tossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
+////         2. toss payments API 호출 (멱등성 헤더 추가하기)
+//        ResponseEntity<TossConfirmResDto> response = tossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
+//                requestDto.paymentKey(),
+//                requestDto.amount()));
+        // 2. mock toss payment API
+        ResponseEntity<TossConfirmResDto> response = mockTossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
                 requestDto.paymentKey(),
                 requestDto.amount()));
 
@@ -114,11 +119,15 @@ public class PaymentServiceImpl implements PaymentService {
             }
             case "400" -> {
 //                payment.failPayment("결제 실패");
-                publisher.publishEvent(new PaymentFailedEvent(payment.getId(),PaymentError.PAYMENT_AMOUNT_MISMATCH));
+//                publisher.publishEvent(new PaymentFailedEvent(payment.getId(),PaymentError.PAYMENT_AMOUNT_MISMATCH));
+                PaymentApprovedEvent event = new PaymentApprovedEvent(requestDto.tossOrderId(),payment.getPaymentKey());
+                publisher.publishEvent(event);
             }
             case "500" -> {
 //                payment.pendingPayment();
-                publisher.publishEvent(new PaymentFailedEvent(payment.getId(),PaymentError.PAYMENT_GATEWAY_ERROR));
+//                publisher.publishEvent(new PaymentFailedEvent(payment.getId(),PaymentError.PAYMENT_GATEWAY_ERROR));
+                PaymentApprovedEvent event = new PaymentApprovedEvent(requestDto.tossOrderId(),payment.getPaymentKey());
+                publisher.publishEvent(event);
             }
         }
         return payment;
@@ -227,6 +236,15 @@ public class PaymentServiceImpl implements PaymentService {
      */
     private ResponseEntity<TossConfirmResDto> tossPaymentApi(TossConfirmReqDto tossConfirmReqDto) {
         return paymentWebClientUtil.confirmPayment(tossConfirmReqDto, apiKey);
+    }
+
+    private ResponseEntity<TossConfirmResDto> mockTossPaymentApi(TossConfirmReqDto tossConfirmReqDto) {
+        try {
+            Thread.sleep(500);
+        }catch (InterruptedException e){
+            e.printStackTrace();
+        }
+        return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
     /*

@@ -1,8 +1,7 @@
 package org.example.mollyapi.payment.event;
 
 import org.example.mollyapi.common.exception.error.impl.PaymentError;
-import org.example.mollyapi.order.event.eventV2.event.order.OrderInitiateEvent;
-import org.example.mollyapi.order.event.eventV2.handler.order.OrderEventHandler;
+import org.example.mollyapi.order.event.handler.order.OrderEventHandler;
 import org.example.mollyapi.payment.event.event.PaymentApprovedEvent;
 import org.example.mollyapi.payment.event.event.PaymentFailedEvent;
 import org.example.mollyapi.payment.event.handler.PaymentEventHandler;

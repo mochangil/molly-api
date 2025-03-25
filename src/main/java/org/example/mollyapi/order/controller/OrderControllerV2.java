@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/orders2")
 @RequiredArgsConstructor
 public class OrderControllerV2 {
-    private final OrderServiceImplV2 orderServiceImpl;
+    private final OrderServiceImplV2 orderServiceImplV2;
     private final OrderRepository orderRepository;
 
     /**
@@ -37,7 +37,7 @@ public class OrderControllerV2 {
 
         Long userId = (Long) httpRequest.getAttribute("userId");
 
-        OrderResponseDto response = orderServiceImpl.createOrder(userId, orderRequestDto.orderRequests());
+        OrderResponseDto response = orderServiceImplV2.createOrder(userId, orderRequestDto.orderRequests());
 
         return ResponseEntity.ok(response);
     }
@@ -50,7 +50,7 @@ public class OrderControllerV2 {
     @Operation(summary = "주문 철회 요청 API", description = "주문 ID를 받아 주문 철회 요청")
     public ResponseEntity<String> withdrawOrder(@PathVariable Long orderId) {
         log.info("주문 철회 요청: orderId={}", orderId);
-        orderServiceImpl.withdrawOrder(orderId);
+        orderServiceImplV2.withdrawOrder(orderId);
         return ResponseEntity.ok("주문 철회가 완료되었습니다.");
     }
 
@@ -66,7 +66,7 @@ public class OrderControllerV2 {
 
         Long userId = (Long) request.getAttribute("userId");
 
-        PaymentResDto response = orderServiceImpl.processOrder(
+        PaymentResDto response = orderServiceImplV2.processOrder(
                 userId,
                 orderConfirmRequestDto.paymentKey(),
                 orderConfirmRequestDto.tossOrderId(),
@@ -100,16 +100,16 @@ public class OrderControllerV2 {
         if (retry) {
             // "네" 선택 시 결제 재시도
             try {
-                orderServiceImpl.processOrder(userId, null, null, null, null, null, null);
+                orderServiceImplV2.processOrder(userId, null, null, null, null, null, null);
             } catch (Exception e) {
                 log.error("수동 결제 재시도 실패! -> failOrder 실행: orderId={}", orderId);
-                orderServiceImpl.failOrder(tossOrderId); // 실패하면 즉시 failOrder 실행(강제)
+                orderServiceImplV2.failOrder(tossOrderId); // 실패하면 즉시 failOrder 실행(강제)
                 return ResponseEntity.ok("결제 재시도 실패로 주문이 자동 실패 처리되었습니다.");
             }
             return ResponseEntity.ok("결제를 다시 시도합니다.");
         } else {
             // "아니오" 선택 시 주문 즉시 실패 처리
-            orderServiceImpl.failOrder(tossOrderId);
+            orderServiceImplV2.failOrder(tossOrderId);
             return ResponseEntity.ok("주문이 실패 처리되었습니다.");
         }
     }
@@ -122,7 +122,7 @@ public class OrderControllerV2 {
     @Operation(summary = "반품 확인 API", description = "반품 도착 확인, 이후 자동 환불 진행 (관리자용)")
     public ResponseEntity<String> confirmReturn(@PathVariable Long orderId) {
         log.info("반품 확인 요청: orderId={}", orderId);
-        orderServiceImpl.handleReturnArrived(orderId);
+        orderServiceImplV2.handleReturnArrived(orderId);
         return ResponseEntity.ok("반품이 확인되어 환불 처리가 시작됩니다.");
     }
 

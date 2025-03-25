@@ -1,6 +1,0 @@
-package org.example.mollyapi.order.event.eventV2.event.order;
-
-public record OrderPostProcessEvent(
-
-){
-}

@@ -1,4 +1,4 @@
-package org.example.mollyapi.order.event.eventV2.handler.user;
+package org.example.mollyapi.order.event.handler.user;
 
 
 import lombok.RequiredArgsConstructor;
@@ -7,7 +7,7 @@ import org.example.mollyapi.common.exception.CustomException;
 import org.example.mollyapi.common.exception.error.impl.PaymentError;
 import org.example.mollyapi.common.exception.error.impl.UserError;
 import org.example.mollyapi.order.entity.Order;
-import org.example.mollyapi.order.event.eventV2.event.order.OrderPreProcessEvent;
+import org.example.mollyapi.order.event.event.order.OrderPreProcessEvent;
 import org.example.mollyapi.order.repository.OrderRepository;
 import org.example.mollyapi.payment.util.AESUtil;
 import org.example.mollyapi.user.entity.User;

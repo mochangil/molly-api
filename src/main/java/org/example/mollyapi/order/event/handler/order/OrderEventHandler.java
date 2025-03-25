@@ -1,7 +1,7 @@
-package org.example.mollyapi.order.event.eventV2.handler.order;
+package org.example.mollyapi.order.event.handler.order;
 
 import lombok.RequiredArgsConstructor;
-import org.example.mollyapi.order.event.eventV2.event.order.OrderInitiateEvent;
+import org.example.mollyapi.order.event.event.order.OrderInitiateEvent;
 import org.example.mollyapi.order.service.OrderServiceImplV2;
 import org.example.mollyapi.payment.event.event.PaymentApprovedEvent;
 import org.springframework.context.event.EventListener;

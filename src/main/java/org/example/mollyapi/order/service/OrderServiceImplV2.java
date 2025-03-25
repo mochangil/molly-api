@@ -15,22 +15,20 @@ import org.example.mollyapi.delivery.repository.DeliveryRepository;
 import org.example.mollyapi.delivery.type.DeliveryStatus;
 import org.example.mollyapi.order.dto.*;
 import org.example.mollyapi.order.entity.*;
-import org.example.mollyapi.order.event.eventV2.event.order.OrderInitiateEvent;
-import org.example.mollyapi.order.event.eventV2.event.order.OrderPostProcessEvent;
-import org.example.mollyapi.order.event.eventV2.event.order.OrderPreProcessEvent;
-import org.example.mollyapi.order.event.eventV2.event.order.OrderProcessEvent;
+import org.example.mollyapi.order.event.event.order.OrderInitiateEvent;
+import org.example.mollyapi.order.event.event.order.OrderPostProcessEvent;
+import org.example.mollyapi.order.event.event.order.OrderPreProcessEvent;
+import org.example.mollyapi.order.event.event.order.OrderProcessEvent;
 import org.example.mollyapi.order.repository.OrderDetailRepository;
 import org.example.mollyapi.order.repository.OrderRepository;
 import org.example.mollyapi.order.type.CancelStatus;
 import org.example.mollyapi.order.type.OrderStatus;
 import org.example.mollyapi.payment.dto.request.PaymentConfirmReqDto;
-import org.example.mollyapi.payment.dto.response.PaymentInfoResDto;
 import org.example.mollyapi.payment.dto.response.PaymentResDto;
 import org.example.mollyapi.payment.entity.Payment;
 import org.example.mollyapi.payment.repository.PaymentRepository;
 import org.example.mollyapi.payment.service.PaymentService;
 import org.example.mollyapi.payment.type.PaymentStatus;
-import org.example.mollyapi.payment.util.AESUtil;
 import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.repository.ProductItemRepository;
 import org.example.mollyapi.review.repository.ReviewRepository;
@@ -48,14 +46,13 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class OrderServiceImplV2 {
     private final OrderRepository orderRepository;
     private final OrderDetailRepository orderDetailRepository;
@@ -621,6 +618,7 @@ public class OrderServiceImplV2 {
         return null;
     }
 
+    @Transactional
     public void successOrder(String tossOrderId, String paymentKey) {
         System.out.println(tossOrderId);
         Order order = orderRepository.findByTossOrderId(tossOrderId)
@@ -645,6 +643,7 @@ public class OrderServiceImplV2 {
         );
     }
 
+    @Transactional
     public void validateOrder(String tossOrderId) {
 
         Order order = orderRepository.findByTossOrderId(tossOrderId)

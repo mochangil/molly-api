@@ -1,4 +1,4 @@
-package org.example.mollyapi.order.event.eventV2.handler.delivery;
+package org.example.mollyapi.order.event.handler.delivery;
 
 
 import lombok.RequiredArgsConstructor;
@@ -9,10 +9,11 @@ import org.example.mollyapi.delivery.dto.DeliveryReqDto;
 import org.example.mollyapi.delivery.entity.Delivery;
 import org.example.mollyapi.delivery.repository.DeliveryRepository;
 import org.example.mollyapi.order.entity.Order;
-import org.example.mollyapi.order.event.eventV2.event.order.OrderProcessEvent;
+import org.example.mollyapi.order.event.event.order.OrderProcessEvent;
 import org.example.mollyapi.order.repository.OrderRepository;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -22,6 +23,7 @@ public class DeliveryEventHandler {
     private final OrderRepository orderRepository;
 
     @EventListener
+    @Transactional
     public void handleOrderProcessEvent(OrderProcessEvent event) {
 
         Order order = orderRepository.findByTossOrderId(event.tossOrderId())
@@ -31,9 +33,5 @@ public class DeliveryEventHandler {
         order.setDelivery(Delivery.from(event.deliveryInfo(),order.getId()));
     }
 
-
-    private Delivery createDelivery(DeliveryReqDto deliveryInfo, Long orderId) {
-        return Delivery.from(deliveryInfo,orderId);
-    }
 
 }

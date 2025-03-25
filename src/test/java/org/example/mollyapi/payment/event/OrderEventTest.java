@@ -1,13 +1,13 @@
 package org.example.mollyapi.payment.event;
 
-import org.example.mollyapi.order.event.eventV2.event.order.OrderInitiateEvent;
-import org.example.mollyapi.order.event.eventV2.event.order.OrderPreProcessEvent;
-import org.example.mollyapi.order.event.eventV2.event.order.OrderProcessEvent;
-import org.example.mollyapi.order.event.eventV2.handler.cart.CartEventHandler;
-import org.example.mollyapi.order.event.eventV2.handler.delivery.DeliveryEventHandler;
-import org.example.mollyapi.order.event.eventV2.handler.order.OrderEventHandler;
-import org.example.mollyapi.order.event.eventV2.handler.product.StockEventHandler;
-import org.example.mollyapi.order.event.eventV2.handler.user.PointEventHandler;
+import org.example.mollyapi.order.event.event.order.OrderInitiateEvent;
+import org.example.mollyapi.order.event.event.order.OrderPreProcessEvent;
+import org.example.mollyapi.order.event.event.order.OrderProcessEvent;
+import org.example.mollyapi.order.event.handler.cart.CartEventHandler;
+import org.example.mollyapi.order.event.handler.delivery.DeliveryEventHandler;
+import org.example.mollyapi.order.event.handler.order.OrderEventHandler;
+import org.example.mollyapi.order.event.handler.product.StockEventHandler;
+import org.example.mollyapi.order.event.handler.user.PointEventHandler;
 import org.example.mollyapi.payment.event.handler.PaymentEventHandler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

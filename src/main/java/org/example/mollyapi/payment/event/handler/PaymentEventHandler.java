@@ -2,7 +2,7 @@ package org.example.mollyapi.payment.event.handler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.mollyapi.order.event.eventV2.event.order.OrderProcessEvent;
+import org.example.mollyapi.order.event.event.order.OrderProcessEvent;
 import org.example.mollyapi.payment.event.event.PaymentApprovedEvent;
 import org.example.mollyapi.payment.event.event.PaymentFailedEvent;
 import org.example.mollyapi.payment.service.PaymentService;
