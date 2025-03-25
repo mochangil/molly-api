@@ -9,8 +9,7 @@ public record ProductItemDto(
         String color,
         String colorCode,
         String size,
-        Long quantity,
-        Product product
+        Long quantity
 ) {
 
     public static ProductItemDto of(ProductItem productItem) {
@@ -19,8 +18,7 @@ public record ProductItemDto(
                 productItem.getColor(),
                 productItem.getColorCode(),
                 productItem.getSize(),
-                productItem.getQuantity(),
-                productItem.getProduct()
+                productItem.getQuantity()
         );
     }
 }
