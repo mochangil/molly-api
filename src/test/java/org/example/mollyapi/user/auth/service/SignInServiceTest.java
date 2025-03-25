@@ -49,8 +49,7 @@ class SignInServiceTest {
         String inputEmail = "test@example.com";
         String inputPassword = "qwer1234";
 
-        SignInReqDto testUser = new SignInReqDto(inputEmail, inputPassword, null);
-        LocalDateTime now = LocalDateTime.now();
+        SignInReqDto testUser = new SignInReqDto(inputEmail, inputPassword);
 
         //when//then
         assertThatThrownBy( ( ) -> signInService.signIn(testUser))
@@ -74,7 +73,7 @@ class SignInServiceTest {
         authRepository.save(givenAuth);
 
         String wrongPassword = "wrong1234";
-        SignInReqDto testUser = new SignInReqDto("test@example.com", wrongPassword, null);
+        SignInReqDto testUser = new SignInReqDto("test@example.com", wrongPassword);
         LocalDateTime now = LocalDateTime.now();
 
         //when//then
@@ -100,14 +99,13 @@ class SignInServiceTest {
         Auth savedAuth = authRepository.save(givenAuth);
 
         LocalDateTime now = LocalDateTime.now();
-        SignInReqDto testUser = new SignInReqDto("test@example.com", "qwer1234", now);
+        SignInReqDto testUser = new SignInReqDto("test@example.com", "qwer1234");
 
 
         //when
         SignInResDto signInResDto = signInService.signIn(testUser);
 
         //then
-        assertThat(savedAuth.getLastLoginAt()).isEqualTo(now);
         assertThat(signInResDto.accessToken()).isNotNull();
         assertThat(signInResDto.roles()).containsExactly(Role.BUY);
     }
