@@ -120,32 +120,44 @@ class ProductRepositoryImplTest {
     @MethodSource("provideSearchConditionsForSingleFilter")
     void findByCondition_singleFilter(ProductFilterCondition condition) {
         //given
-        createTestProduct(1L, "Nike", 60000L, 100L, 50L, List.of(
+
+        User testUser2 = userRepository.save(
+                User.builder()
+                        .nickname("testUser2")
+                        .cellPhone("11012345678")
+                        .sex(Sex.FEMALE) // 성별 Enum 값 (예시: MALE, FEMALE)
+                        .profileImage("default.jpg")
+                        .birth(LocalDate.of(2024, 12, 25)) // 생년월일 (예시)
+                        .name("김정환2") // 사용자 이름
+                        .build()
+        );
+
+        createTestProduct(1L, "Nike", 60000L, 100L, 50L, testUser, List.of(
                 new ProductItemOption("RED", "Red", "M", 200L),
                 new ProductItemOption("BLUE", "Blue", "L", 150L)
         ));
 
-        createTestProduct(2L, "Adidas", 80000L, 120L, 70L, List.of(
+        createTestProduct(2L, "Adidas", 80000L, 120L, 70L, testUser, List.of(
                 new ProductItemOption("RED", "Red", "S", 180L),
                 new ProductItemOption("GREEN", "Green", "M", 140L)
         ));
 
-        createTestProduct(1L, "Nike", 40000L, 90L, 30L, List.of(
+        createTestProduct(1L, "Nike", 40000L, 90L, 30L, testUser2, List.of(
                 new ProductItemOption("RED", "Red", "M", 100L),
                 new ProductItemOption("BLUE", "Blue", "L", 120L)
         ));
 
-        createTestProduct(3L, "Puma", 75000L, 200L, 100L, List.of(
+        createTestProduct(3L, "Puma", 75000L, 200L, 100L, testUser, List.of(
                 new ProductItemOption("CYAN", "Cyan", "L", 50L),
                 new ProductItemOption("MAGENTA", "Magenta", "XL", 80L)
         ));
 
-        createTestProduct(2L, "Nike", 90000L, 10L, 5L, List.of(
+        createTestProduct(2L, "Nike", 90000L, 10L, 5L, testUser2, List.of(
                 new ProductItemOption("RED", "Red", "M", 0L),
                 new ProductItemOption("BLACK", "Black", "S", 100L)
         ));        // when
         PageRequest pageable = PageRequest.of(0, 10);
-        List<ProductAndThumbnailDto> content = productRepository.findByCondition(condition, pageable).getContent();
+        List<ProductAndThumbnailDto> content = productRepository.findByCondition(condition, pageable, 0L).getContent();
 
         // then
         assertThat(content).isNotEmpty();
@@ -188,7 +200,7 @@ class ProductRepositoryImplTest {
 
         // when
         PageRequest pageable = PageRequest.of(0, 10);
-        List<ProductAndThumbnailDto> content = productRepository.findByCondition(condition, pageable).getContent();
+        List<ProductAndThumbnailDto> content = productRepository.findByCondition(condition, pageable, 0L).getContent();
 
         //then
         assertThat(content).isNotEmpty();
@@ -210,7 +222,7 @@ class ProductRepositoryImplTest {
 
         // when
         PageRequest pageable = PageRequest.of(0, 10);
-        List<ProductAndThumbnailDto> content = productRepository.findByCondition(condition, pageable).getContent();
+        List<ProductAndThumbnailDto> content = productRepository.findByCondition(condition, pageable, 0L).getContent();
 
         //then
         assertThat(content).isEmpty();
@@ -226,7 +238,7 @@ class ProductRepositoryImplTest {
 
         // when
         PageRequest pageable = PageRequest.of(0, 10);
-        List<ProductAndThumbnailDto> content = productRepository.findByCondition(null, pageable).getContent();
+        List<ProductAndThumbnailDto> content = productRepository.findByCondition(null, pageable, 0L).getContent();
 
         //then
         assertThat(content).hasSize(3)
@@ -245,7 +257,7 @@ class ProductRepositoryImplTest {
         createTestProduct("BLUE", "Gray", "M", 3L, "Nike", 30000L, 200L, 130L, 100L);
 
         // when
-        List<ProductAndThumbnailDto> content = productRepository.findByCondition(condition, null).getContent();
+        List<ProductAndThumbnailDto> content = productRepository.findByCondition(condition, null, 0L).getContent();
 
         //then
         assertThat(content).hasSize(3)
@@ -327,7 +339,7 @@ class ProductRepositoryImplTest {
         createTestProduct("CYAN", "Cyan", "S", 2L, "Puma", 95000L, 210L, 200L, 10L);  // 품절 아님
 
         PageRequest pageable = PageRequest.of(0, 10);
-        List<ProductAndThumbnailDto> content = productRepository.findByCondition(condition, pageable).getContent();
+        List<ProductAndThumbnailDto> content = productRepository.findByCondition(condition, pageable, 0L).getContent();
 
         //then
         assertThat(content).isNotEmpty();
@@ -488,7 +500,7 @@ class ProductRepositoryImplTest {
     }
 
     private Product createTestProduct(
-            Long categoryId, String brandName, Long price, Long viewCount, Long purchaseCount,
+            Long categoryId, String brandName, Long price, Long viewCount, Long purchaseCount, User user,
             List<ProductItemOption> itemOptions // 변경: Tuple → ProductItemOption 리스트
     ) {
         // 카테고리 조회
@@ -501,7 +513,7 @@ class ProductRepositoryImplTest {
                 .productName("TestProduct")
                 .price(price)
                 .description("Test description")
-                .user(testUser)
+                .user(user)
                 .build();
 
         // 상품 대표 이미지 추가

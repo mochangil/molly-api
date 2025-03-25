@@ -125,6 +125,15 @@ public class ProductItemSubQuery {
         return this;
     }
 
+    public ProductItemSubQuery appendSellerId(Long sellerId) {
+        if (sellerId == null) {
+            return this;
+        }
+
+        query.append("   AND seller_id = ").append(sellerId).append("\n");
+        return this;
+    }
+
     public ProductItemSubQuery appendOrderAndLimit() {
         query.append("ORDER BY "+ orderBy.getColumnName() + " " + orderBy.getDirection() + "\n");
 

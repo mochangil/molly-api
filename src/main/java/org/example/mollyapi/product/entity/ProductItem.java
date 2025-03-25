@@ -33,6 +33,7 @@ public class ProductItem {
         String colorCode;
         String size;
         Long quantity;
+        Long seller_id;
 
         @Setter
         @ManyToOne(fetch = FetchType.LAZY)
@@ -70,6 +71,7 @@ public class ProductItem {
                 this.purchaseCount = product.getPurchaseCount();
                 this.createdAt = product.getCreatedAt();
                 this.brandName = product.getBrandName();
+                this.seller_id = product.getUser().getUserId();
                 this.categoryId = product.getCategory() != null ? product.getCategory().getId() : null;
         }
 
