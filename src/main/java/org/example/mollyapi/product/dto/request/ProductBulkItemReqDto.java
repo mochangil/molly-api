@@ -34,7 +34,6 @@ public class ProductBulkItemReqDto {
     public ProductItem toProductItem(Product product) {
 
         return ProductItem.builder()
-                .id(this.getProductId())
                 .product(product)
                 .color(this.color)
                 .colorCode(this.colorCode)

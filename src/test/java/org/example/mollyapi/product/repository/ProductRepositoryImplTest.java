@@ -1,16 +1,12 @@
 package org.example.mollyapi.product.repository;
 
-import com.github.f4b6a3.tsid.Tsid;
 import com.github.f4b6a3.tsid.TsidCreator;
 import jakarta.transaction.Transactional;
 import lombok.Getter;
-import org.example.mollyapi.product.dto.BrandSummaryDto;
-import org.example.mollyapi.product.dto.ProductAndThumbnailDto;
-import org.example.mollyapi.product.dto.ProductFilterCondition;
-import org.example.mollyapi.product.dto.UploadFile;
+import org.example.mollyapi.product.dto.*;
 import org.example.mollyapi.product.entity.*;
 import org.example.mollyapi.product.enums.OrderBy;
-import org.example.mollyapi.product.enums.ProductImageType;
+import org.example.mollyapi.product.service.impl.ProductServiceImpl;
 import org.example.mollyapi.user.entity.User;
 import org.example.mollyapi.user.repository.UserRepository;
 import org.example.mollyapi.user.type.Sex;
@@ -26,6 +22,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -422,7 +419,6 @@ class ProductRepositoryImplTest {
 
         // 상품 생성
         Product product = Product.builder()
-                .id(TsidCreator.getTsid().toLong())
                 .category(category)
                 .brandName(brandName)
                 .productName("TestProduct")
@@ -435,15 +431,15 @@ class ProductRepositoryImplTest {
         ProductImage image = createTestProductImage(product);
         product.addImage(image);
 
-        // 상품 아이템 추가 (색상, 사이즈 정보 포함)
-        ProductItem item = createTestProductItem(colorCode, color, size, stock, product);
-        product.addItem(item);
-
         // 조회수 및 구매수 설정
         product.setPurchaseCount(purchaseCount);
         for (long i = 0; i < viewCount; i++) {
             product.increaseViewCount();
         }
+
+        // 상품 아이템 추가 (색상, 사이즈 정보 포함)
+        ProductItem item = createTestProductItem(colorCode, color, size, stock, product);
+        product.addItem(item);
 
         return productRepository.save(product);
     }
@@ -451,13 +447,10 @@ class ProductRepositoryImplTest {
     private ProductImage createTestProductImage(Product product) {
         String url = "/thumbnail.jpg";
         String filename = "thumbnail.jpg";
-        ProductImageType type = THUMBNAIL;
 
         return ProductImage.builder()
                 .uploadFile(UploadFile.builder().uploadFileName(filename).storedFileName(url).build())
-                .isProductImage(type.equals(PRODUCT))
-                .isDescriptionImage(type.equals(DESCRIPTION))
-                .isRepresentative(type.equals(THUMBNAIL))
+                .type(THUMBNAIL)
                 .imageIndex(0L)
                 .product(product)
                 .build();
@@ -482,7 +475,6 @@ class ProductRepositoryImplTest {
 
         // 상품 생성
         Product product = Product.builder()
-                .id(TsidCreator.getTsid().toLong())
                 .category(category)
                 .brandName(brandName)
                 .productName("TestProduct")
@@ -494,6 +486,12 @@ class ProductRepositoryImplTest {
         // 상품 대표 이미지 추가
         ProductImage image = createTestProductImage(product);
         product.addImage(image);
+
+        // 조회수 및 구매수 설정
+        product.setPurchaseCount(purchaseCount);
+        for (long i = 0; i < viewCount; i++) {
+            product.increaseViewCount();
+        }
 
         // 여러 개의 상품 아이템 추가
         for (ProductItemOption option : itemOptions) {
@@ -507,11 +505,6 @@ class ProductRepositoryImplTest {
             product.addItem(item);
         }
 
-        // 조회수 및 구매수 설정
-        product.setPurchaseCount(purchaseCount);
-        for (long i = 0; i < viewCount; i++) {
-            product.increaseViewCount();
-        }
 
         return productRepository.save(product);
     }

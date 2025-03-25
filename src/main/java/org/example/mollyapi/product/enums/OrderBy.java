@@ -4,15 +4,19 @@ import lombok.Getter;
 
 @Getter
 public enum OrderBy {
-    CREATED_AT("createdAt"),
-    VIEW_COUNT("viewCount"),
-    PURCHASE_COUNT("purchaseCount"),
-    PRICE_DESC("priceDesc"),
-    PRICE_ASC("priceAsc");
+    CREATED_AT("createAt", "created_at", "DESC"),
+    VIEW_COUNT("viewCount","view_count", "DESC"),
+    PURCHASE_COUNT("purchaseCount","purchase_count", "DESC"),
+    PRICE_DESC("priceDesc","price","DESC"),
+    PRICE_ASC("priceAsc","price","ASC");
 
     private final String value;
+    private final String columnName;
+    private final String direction;
 
-    OrderBy(String value) {
+    OrderBy(String value, String columnName, String direction) {
         this.value = value;
+        this.columnName = columnName;
+        this.direction = direction;
     }
 }

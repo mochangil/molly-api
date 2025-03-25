@@ -2,7 +2,6 @@ package org.example.mollyapi.product.service.impl;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.example.mollyapi.product.dto.BrandSummaryDto;
 import org.example.mollyapi.product.dto.ProductAndThumbnailDto;
 import org.example.mollyapi.product.dto.ProductFilterCondition;
 import org.example.mollyapi.product.dto.ProductItemDto;
@@ -10,10 +9,8 @@ import org.example.mollyapi.product.dto.response.ColorDetailDto;
 import org.example.mollyapi.product.dto.response.FileInfoDto;
 import org.example.mollyapi.product.dto.response.ProductResDto;
 import org.example.mollyapi.product.dto.response.SizeDetailDto;
-import org.example.mollyapi.product.entity.Category;
 import org.example.mollyapi.product.entity.Product;
 import org.example.mollyapi.product.entity.ProductItem;
-import org.example.mollyapi.product.enums.OrderBy;
 import org.example.mollyapi.product.repository.ProductRepository;
 import org.example.mollyapi.product.service.CategoryService;
 import org.example.mollyapi.product.service.ProductReadService;
@@ -26,8 +23,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
-import static org.example.mollyapi.product.enums.OrderBy.*;
 
 @Service
 @RequiredArgsConstructor
@@ -69,7 +64,7 @@ public class ProductReadServiceImpl implements ProductReadService {
         List<FileInfoDto> productImages = product.getProductImages().stream().map((item)-> new FileInfoDto(item.getStoredFileName(), item.getUploadFileName())).toList();
         List<FileInfoDto> descriptionImages = product.getDescriptionImages().stream().map(item -> new FileInfoDto(item.getStoredFileName(), item.getUploadFileName())).toList();
 
-        List<ProductItemDto> itemResDtoList = product.getItems().stream().map(ProductItemDto::from).toList();
+        List<ProductItemDto> itemResDtoList = product.getItems().stream().map(ProductItemDto::of).toList();
         List<ColorDetailDto> colorDetails = groupItemByColor(product.getItems());
 
         return new ProductResDto(

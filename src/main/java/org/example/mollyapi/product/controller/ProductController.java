@@ -14,7 +14,8 @@ import org.example.mollyapi.common.exception.CustomErrorResponse;
 import org.example.mollyapi.product.dto.BrandSummaryDto;
 import org.example.mollyapi.product.dto.ProductFilterCondition;
 import org.example.mollyapi.product.dto.request.ProductFilterConditionReqDto;
-import org.example.mollyapi.product.dto.request.ProductReqDto;
+import org.example.mollyapi.product.dto.request.ProductRegisterReqDto;
+import org.example.mollyapi.product.dto.request.ProductUpdateReqDto;
 import org.example.mollyapi.product.dto.response.ListResDto;
 import org.example.mollyapi.product.dto.response.PageResDto;
 import org.example.mollyapi.product.dto.response.ProductResDto;
@@ -201,7 +202,7 @@ public class ProductController {
     })
     public ResponseEntity<ProductResDto> registerProduct(
             HttpServletRequest request,
-            @Valid @RequestPart("product") ProductReqDto productReqDto,
+            @Valid @RequestPart("product") ProductRegisterReqDto productRegisterReqDto,
             @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
             @RequestPart(value = "productImages", required = false) List<MultipartFile> productImages,
             @RequestPart(value = "productDescriptionImages", required = false) List<MultipartFile> productDescriptionImages
@@ -209,8 +210,8 @@ public class ProductController {
         Long userId = (Long) request.getAttribute("userId");
         ProductResDto productResDto = productService.registerProduct(
                 userId,
-                ProductReqDto.from(productReqDto),
-                productReqDto.items(),
+                ProductRegisterReqDto.from(productRegisterReqDto),
+                productRegisterReqDto.items(),
                 thumbnail, productImages, productDescriptionImages);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
@@ -230,13 +231,13 @@ public class ProductController {
     public ResponseEntity<ProductResDto> updateProduct(
             HttpServletRequest request,
             @PathVariable Long productId,
-            @RequestPart("product") ProductReqDto productRegisterReqDto) {
+            @RequestPart("product") ProductUpdateReqDto productUpdateReqDto) {
         Long userId = (Long) request.getAttribute("userId");
         ProductResDto productResDto = productService.updateProduct(
                 userId,
                 productId,
-                ProductReqDto.from(productRegisterReqDto),
-                productRegisterReqDto.items());
+                ProductUpdateReqDto.from(productUpdateReqDto),
+                productUpdateReqDto.items());
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(productResDto);

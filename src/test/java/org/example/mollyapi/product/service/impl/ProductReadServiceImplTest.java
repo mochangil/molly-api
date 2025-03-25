@@ -1,4 +1,4 @@
-package org.example.mollyapi.product.service;
+package org.example.mollyapi.product.service.impl;
 
 import org.example.mollyapi.product.dto.ProductAndThumbnailDto;
 import org.example.mollyapi.product.dto.ProductFilterCondition;
@@ -14,6 +14,8 @@ import org.example.mollyapi.product.entity.ProductImage;
 import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.enums.ProductImageType;
 import org.example.mollyapi.product.repository.ProductRepository;
+import org.example.mollyapi.product.service.CategoryService;
+import org.example.mollyapi.product.service.ProductReadService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -240,9 +242,7 @@ class ProductReadServiceImplTest {
         return ProductImage.builder()
                 .product(product)
                 .uploadFile(UploadFile.builder().uploadFileName(filename).storedFileName(url).build())
-                .isProductImage(type.equals(PRODUCT))
-                .isRepresentative(type.equals(THUMBNAIL))
-                .isDescriptionImage(type.equals(DESCRIPTION))
+                .type(type)
                 .imageIndex(0L)
                 .build();
     }
@@ -272,13 +272,12 @@ class ProductReadServiceImplTest {
                 brandName,
                 productName,
                 price,
-                LocalDateTime.now(),
-                150L,
-                200L,
-
                 url,
                 filename,
-                1L
+                1L,
+                150L,
+                200L,
+                LocalDateTime.now()
         );
     }
 
@@ -289,12 +288,12 @@ class ProductReadServiceImplTest {
                 "BrandA",
                 productName,
                 10000L,
-                LocalDateTime.now(),
-                150L,
-                200L,
                 "http://example.com/product-a.jpg",
                 "product-a.jpg",
-                1L
+                1L,
+                150L,
+                200L,
+                LocalDateTime.now()
         );
     }
 }
