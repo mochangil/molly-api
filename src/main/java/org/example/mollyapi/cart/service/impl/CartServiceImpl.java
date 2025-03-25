@@ -15,7 +15,7 @@ import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.repository.ProductItemRepository;
 import org.example.mollyapi.product.service.impl.ProductServiceImpl;
 import org.example.mollyapi.user.entity.User;
-import org.example.mollyapi.user.repository.UserRepository;
+import org.example.mollyapi.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,16 +24,15 @@ import java.util.stream.Collectors;
 
 import static org.example.mollyapi.common.exception.error.impl.CartError.*;
 import static org.example.mollyapi.common.exception.error.impl.ProductItemError.*;
-import static org.example.mollyapi.common.exception.error.impl.UserError.NOT_EXISTS_USER;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class CartServiceImpl implements CartService {
     private final ProductServiceImpl productService;
-    private final UserRepository userRep;
     private final ProductItemRepository productItemRep;
     private final CartRepository cartRep;
+    private final UserService userService;
 
     /**
      * 장바구니에 상품 담기 기능
@@ -44,8 +43,7 @@ public class CartServiceImpl implements CartService {
     @Transactional
     public void addCart(AddCartReqDto addCartReqDto, Long userId) {
         // 1. 가입된 사용자 여부 체크
-        User user = userRep.findById(userId)
-                .orElseThrow(() -> new CustomException(NOT_EXISTS_USER));
+        User user = userService.findByUser(userId);
 
         // 2. 상품 존재 여부 체크
         ProductItem item = getProductItemInfo(addCartReqDto.itemId());
@@ -98,7 +96,7 @@ public class CartServiceImpl implements CartService {
     @Transactional(readOnly = true)
     public List<CartInfoResDto> getCartDetail(Long userId) {
         // 가입된 사용자 여부 체크
-        existsUser(userId);
+        userService.validUser(userId);
 
         // 사용자 장바구니 조회
         List<CartInfoDto> cartInfoList = cartRep.getCartInfo(userId);
@@ -129,7 +127,7 @@ public class CartServiceImpl implements CartService {
     @Transactional
     public void updateItemOption(UpdateCartReqDto updateCartReqDto, Long userId) {
         // 1. 가입된 사용자 여부 체크
-        existsUser(userId);
+        userService.validUser(userId);
 
         // 2. 해당 장바구니 내역 여부 체크
         Cart cart = getCartInfo(updateCartReqDto.cartId(), userId);
@@ -159,21 +157,12 @@ public class CartServiceImpl implements CartService {
     @Transactional
     public void deleteCartItem(List<Long> cartList, Long userId) {
         // 1. 가입된 사용자 여부 체크
-        existsUser(userId);
+        userService.validUser(userId);
 
         // 2. 리스트에 담긴 cartId 순서대로 삭제
         for (Long cartId : cartList) {
             cartRep.delete(getCartInfo(cartId, userId));
         }
-    }
-
-    /**
-     * 가입된 사용자 여부 체크
-     * @param userId 사용자 PK
-     * */
-    public void existsUser(Long userId) {
-        boolean existsUser = userRep.existsById(userId);
-        if(!existsUser) throw new CustomException(NOT_EXISTS_USER);
     }
 
     /**
@@ -203,7 +192,7 @@ public class CartServiceImpl implements CartService {
      * @param changeQuantity 변경할 수량
      * */
     public void checkStock(Long itemQuantity, Long changeQuantity) {
-        if(itemQuantity == null || itemQuantity == 0 || itemQuantity < changeQuantity)
+        if(itemQuantity == 0 || itemQuantity < changeQuantity)
             throw new CustomException(OVER_QUANTITY);
     }
 
