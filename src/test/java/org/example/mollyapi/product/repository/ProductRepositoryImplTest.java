@@ -1,16 +1,10 @@
 package org.example.mollyapi.product.repository;
 
-import com.github.f4b6a3.tsid.Tsid;
-import com.github.f4b6a3.tsid.TsidCreator;
 import jakarta.transaction.Transactional;
 import lombok.Getter;
-import org.example.mollyapi.product.dto.BrandSummaryDto;
-import org.example.mollyapi.product.dto.ProductAndThumbnailDto;
-import org.example.mollyapi.product.dto.ProductFilterCondition;
-import org.example.mollyapi.product.dto.UploadFile;
+import org.example.mollyapi.product.dto.*;
 import org.example.mollyapi.product.entity.*;
 import org.example.mollyapi.product.enums.OrderBy;
-import org.example.mollyapi.product.enums.ProductImageType;
 import org.example.mollyapi.user.entity.User;
 import org.example.mollyapi.user.repository.UserRepository;
 import org.example.mollyapi.user.type.Sex;
@@ -33,6 +27,7 @@ import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.example.mollyapi.product.enums.ProductImageType.*;
 
 @SpringBootTest
@@ -257,6 +252,29 @@ class ProductRepositoryImplTest {
                 .extracting("brandName").contains("Adidas", "Nike", "Nike");
     }
 
+    @DisplayName("커서 기반으로 offset를 지정해서 offset 이후에 데이터를 조회한다")
+    @Test
+    void findByCondition_Pageable() {
+        // given
+        ProductFilterCondition condition = new ProductFilterCondition(List.of("WHITE"), null, null, null, null, null, null, null, OrderBy.VIEW_COUNT);
+        // 최소값보다 비싼 상품
+        createTestProduct("WHITE", "White", "M", 2L, "Adidas", 110000L, 250L, 200L, 500L);
+        Product testProduct = createTestProduct("WHITE", "Blue", "M", 1L, "Nike", 80000L, 200L, 150L, 300L);
+        createTestProduct("WHITE", "Gray", "M", 3L, "Nike", 30000L, 150L, 130L, 100L);
+        createTestProduct("BLUE", "Gray", "M", 3L, "Nike", 30000L, 200L, 130L, 100L);
+
+        // when
+        PageRequest pageable = PageRequest.of(0, 10);
+        List<ProductAndThumbnailDto> content = productRepository.findByCondition(condition, pageable, testProduct.getId()).getContent();
+
+        //then
+        assertThat(content).hasSize(1)
+                .extracting("brandName", "categoryId")
+                .contains(
+                        tuple("Nike", 3L)
+                );
+    }
+
 
     static Stream<ProductFilterCondition> provideSearchConditionsForFiltersAndSorting() {
         return Stream.of(
@@ -422,7 +440,6 @@ class ProductRepositoryImplTest {
 
         // 상품 생성
         Product product = Product.builder()
-                .id(TsidCreator.getTsid().toLong())
                 .category(category)
                 .brandName(brandName)
                 .productName("TestProduct")
@@ -435,15 +452,15 @@ class ProductRepositoryImplTest {
         ProductImage image = createTestProductImage(product);
         product.addImage(image);
 
-        // 상품 아이템 추가 (색상, 사이즈 정보 포함)
-        ProductItem item = createTestProductItem(colorCode, color, size, stock, product);
-        product.addItem(item);
-
         // 조회수 및 구매수 설정
         product.setPurchaseCount(purchaseCount);
         for (long i = 0; i < viewCount; i++) {
             product.increaseViewCount();
         }
+
+        // 상품 아이템 추가 (색상, 사이즈 정보 포함)
+        ProductItem item = createTestProductItem(colorCode, color, size, stock, product);
+        product.addItem(item);
 
         return productRepository.save(product);
     }
@@ -451,13 +468,10 @@ class ProductRepositoryImplTest {
     private ProductImage createTestProductImage(Product product) {
         String url = "/thumbnail.jpg";
         String filename = "thumbnail.jpg";
-        ProductImageType type = THUMBNAIL;
 
         return ProductImage.builder()
                 .uploadFile(UploadFile.builder().uploadFileName(filename).storedFileName(url).build())
-                .isProductImage(type.equals(PRODUCT))
-                .isDescriptionImage(type.equals(DESCRIPTION))
-                .isRepresentative(type.equals(THUMBNAIL))
+                .type(THUMBNAIL)
                 .imageIndex(0L)
                 .product(product)
                 .build();
@@ -482,7 +496,6 @@ class ProductRepositoryImplTest {
 
         // 상품 생성
         Product product = Product.builder()
-                .id(TsidCreator.getTsid().toLong())
                 .category(category)
                 .brandName(brandName)
                 .productName("TestProduct")
@@ -494,6 +507,12 @@ class ProductRepositoryImplTest {
         // 상품 대표 이미지 추가
         ProductImage image = createTestProductImage(product);
         product.addImage(image);
+
+        // 조회수 및 구매수 설정
+        product.setPurchaseCount(purchaseCount);
+        for (long i = 0; i < viewCount; i++) {
+            product.increaseViewCount();
+        }
 
         // 여러 개의 상품 아이템 추가
         for (ProductItemOption option : itemOptions) {
@@ -507,11 +526,6 @@ class ProductRepositoryImplTest {
             product.addItem(item);
         }
 
-        // 조회수 및 구매수 설정
-        product.setPurchaseCount(purchaseCount);
-        for (long i = 0; i < viewCount; i++) {
-            product.increaseViewCount();
-        }
 
         return productRepository.save(product);
     }

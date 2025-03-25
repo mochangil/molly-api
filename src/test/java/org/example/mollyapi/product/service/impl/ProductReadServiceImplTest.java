@@ -1,5 +1,6 @@
-package org.example.mollyapi.product.service;
+package org.example.mollyapi.product.service.impl;
 
+import jakarta.transaction.Transactional;
 import org.example.mollyapi.product.dto.ProductAndThumbnailDto;
 import org.example.mollyapi.product.dto.ProductFilterCondition;
 import org.example.mollyapi.product.dto.ProductItemDto;
@@ -14,6 +15,8 @@ import org.example.mollyapi.product.entity.ProductImage;
 import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.enums.ProductImageType;
 import org.example.mollyapi.product.repository.ProductRepository;
+import org.example.mollyapi.product.service.CategoryService;
+import org.example.mollyapi.product.service.ProductReadService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +38,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest
+@Transactional
 class ProductReadServiceImplTest {
 
     @Autowired
@@ -62,13 +66,13 @@ class ProductReadServiceImplTest {
 
         // 잘못된 케이스
         SliceImpl<ProductAndThumbnailDto> wrongResult = new SliceImpl<>(wrongContent, pageRequest, false);
-        when(productRepository.findByCondition(null, pageRequest)).thenReturn(wrongResult);
+        when(productRepository.findByCondition(null, pageRequest, 0L)).thenReturn(wrongResult);
         // 기대되는 케이스
         SliceImpl<ProductAndThumbnailDto> rightResult = new SliceImpl<>(rightContent, pageRequest, false);
-        when(productRepository.findByCondition(ProductFilterCondition.builder().build(), pageRequest)).thenReturn(rightResult);
+        when(productRepository.findByCondition(ProductFilterCondition.builder().build(), pageRequest, 0L)).thenReturn(rightResult);
 
         // when
-        List<ProductResDto> products = productReadService.getAllProducts(null, pageRequest).getContent();
+        List<ProductResDto> products = productReadService.getAllProducts(null, pageRequest, 0L).getContent();
 
         // then
         assertThat(products).isNotEmpty()
@@ -76,7 +80,7 @@ class ProductReadServiceImplTest {
     }
 
 
-    @DisplayName("pageable이 null이면 0번째 페이지에서 10개의 데이터만 가져온다.")
+    @DisplayName("pageable이 null이면 10개의 데이터만 가져온다.")
     @Test
     void getAllProducts_PageableNull() {
         // given
@@ -88,13 +92,39 @@ class ProductReadServiceImplTest {
 
         // 잘못된 케이스
         SliceImpl<ProductAndThumbnailDto> wrongResult = new SliceImpl<>(wrongContent, Pageable.unpaged(), false);
-        when(productRepository.findByCondition(condition, null)).thenReturn(wrongResult);
+        when(productRepository.findByCondition(condition, null, 0L)).thenReturn(wrongResult);
         // 기대되는 케이스
         SliceImpl<ProductAndThumbnailDto> rightResult = new SliceImpl<>(rightContent,  PageRequest.of(0,10), false);
-        when(productRepository.findByCondition(condition, PageRequest.of(0,10))).thenReturn(rightResult);
+        when(productRepository.findByCondition(condition, PageRequest.of(0,10), 0L)).thenReturn(rightResult);
 
         // when
-        List<ProductResDto> products = productReadService.getAllProducts(condition, null).getContent();
+        List<ProductResDto> products = productReadService.getAllProducts(condition, null, 0L).getContent();
+
+        // then
+        assertThat(products).isNotEmpty()
+                .extracting("productName").contains("rightProductName1");
+    }
+
+    @DisplayName("offset이 null이면 가장 상위의 10개의 데이터만 가져온다.")
+    @Test
+    void getAllProducts_OffsetNull() {
+        // given
+        when(categoryService.getCategoryPath(any(Category.class))).thenReturn(List.of());
+        List<ProductAndThumbnailDto> wrongContent = List.of(createProductAndThumbnailDto("wrongProductName1"));
+        List<ProductAndThumbnailDto> rightContent = List.of(createProductAndThumbnailDto("rightProductName1"));
+        PageRequest pageRequest = PageRequest.of(0, 10);
+
+        ProductFilterCondition condition = ProductFilterCondition.builder().build();
+
+        // 잘못된 케이스
+        SliceImpl<ProductAndThumbnailDto> wrongResult = new SliceImpl<>(wrongContent, Pageable.unpaged(), false);
+        when(productRepository.findByCondition(condition, null, 0L)).thenReturn(wrongResult);
+        // 기대되는 케이스
+        SliceImpl<ProductAndThumbnailDto> rightResult = new SliceImpl<>(rightContent,  PageRequest.of(0,10), false);
+        when(productRepository.findByCondition(condition, PageRequest.of(0,10), 0L)).thenReturn(rightResult);
+
+        // when
+        List<ProductResDto> products = productReadService.getAllProducts(condition, pageRequest, null).getContent();
 
         // then
         assertThat(products).isNotEmpty()
@@ -119,10 +149,10 @@ class ProductReadServiceImplTest {
         );
 
         SliceImpl<ProductAndThumbnailDto> result = new SliceImpl<>(content, Pageable.unpaged(), false);
-        when(productRepository.findByCondition(any(), any())).thenReturn(result);
+        when(productRepository.findByCondition(any(), any(), any())).thenReturn(result);
 
         //when
-        List<ProductResDto> products = productReadService.getAllProducts(null, null).getContent();
+        List<ProductResDto> products = productReadService.getAllProducts(null, null, null).getContent();
 
         //then
         assertThat(products).extracting("id", "categories", "brandName", "productName", "price")
@@ -240,9 +270,7 @@ class ProductReadServiceImplTest {
         return ProductImage.builder()
                 .product(product)
                 .uploadFile(UploadFile.builder().uploadFileName(filename).storedFileName(url).build())
-                .isProductImage(type.equals(PRODUCT))
-                .isRepresentative(type.equals(THUMBNAIL))
-                .isDescriptionImage(type.equals(DESCRIPTION))
+                .type(type)
                 .imageIndex(0L)
                 .build();
     }
@@ -272,13 +300,12 @@ class ProductReadServiceImplTest {
                 brandName,
                 productName,
                 price,
-                LocalDateTime.now(),
-                150L,
-                200L,
-
                 url,
                 filename,
-                1L
+                1L,
+                150L,
+                200L,
+                LocalDateTime.now()
         );
     }
 
@@ -289,12 +316,12 @@ class ProductReadServiceImplTest {
                 "BrandA",
                 productName,
                 10000L,
-                LocalDateTime.now(),
-                150L,
-                200L,
                 "http://example.com/product-a.jpg",
                 "product-a.jpg",
-                1L
+                1L,
+                150L,
+                200L,
+                LocalDateTime.now()
         );
     }
 }

@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-
 @Service
 @RequiredArgsConstructor
 public class ProductReadServiceImpl implements ProductReadService {
@@ -33,7 +32,7 @@ public class ProductReadServiceImpl implements ProductReadService {
     private final ProductRepository productRepository;
 
     @Override
-    public Slice<ProductResDto> getAllProducts(ProductFilterCondition condition, Pageable pageable) {
+    public Slice<ProductResDto> getAllProducts(ProductFilterCondition condition, Pageable pageable, Long offsetId) {
         if (condition == null) {
             condition = ProductFilterCondition.builder().build();
         }
@@ -44,7 +43,11 @@ public class ProductReadServiceImpl implements ProductReadService {
             pageable = PageRequest.of(defaultPageNumber, defaultPageSize);
         }
 
-        Slice<ProductAndThumbnailDto> page = productRepository.findByCondition(condition, pageable);
+        if (offsetId == null) {
+            offsetId = 0L;
+        }
+
+        Slice<ProductAndThumbnailDto> page = productRepository.findByCondition(condition, pageable, offsetId);
 
         return page.map(this::convertToProductResDto);
     }
@@ -65,7 +68,7 @@ public class ProductReadServiceImpl implements ProductReadService {
         List<FileInfoDto> productImages = product.getProductImages().stream().map((item)-> new FileInfoDto(item.getStoredFileName(), item.getUploadFileName())).toList();
         List<FileInfoDto> descriptionImages = product.getDescriptionImages().stream().map(item -> new FileInfoDto(item.getStoredFileName(), item.getUploadFileName())).toList();
 
-        List<ProductItemDto> itemResDtoList = product.getItems().stream().map(ProductItemDto::from).toList();
+        List<ProductItemDto> itemResDtoList = product.getItems().stream().map(ProductItemDto::of).toList();
         List<ColorDetailDto> colorDetails = groupItemByColor(product.getItems());
 
         return new ProductResDto(

@@ -1,10 +1,9 @@
 package org.example.mollyapi.product.repository;
 
-import com.querydsl.core.types.OrderSpecifier;
-import com.querydsl.core.types.dsl.BooleanExpression;
-import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 import org.example.mollyapi.product.dto.*;
 import org.example.mollyapi.product.enums.OrderBy;
 import org.springframework.data.domain.Pageable;
@@ -15,15 +14,17 @@ import java.util.List;
 
 import static org.example.mollyapi.product.entity.QProduct.product;
 import static org.example.mollyapi.product.entity.QProductImage.productImage;
-import static org.example.mollyapi.product.entity.QProductItem.productItem;
 import static org.springframework.util.StringUtils.hasText;
 
 public class ProductRepositoryImpl implements ProductRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
 
-    public ProductRepositoryImpl(JPAQueryFactory queryFactory) {
+    private final EntityManager entityManager;
+
+    public ProductRepositoryImpl(JPAQueryFactory queryFactory, EntityManager entityManager) {
         this.queryFactory = queryFactory;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -56,59 +57,42 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
         return new SliceImpl<>(content, pageable, hasNext);
     }
 
-
     @Override
     public Slice<ProductAndThumbnailDto> findByCondition(ProductFilterCondition condition, Pageable pageable) {
         if (pageable == null) pageable = Pageable.unpaged();
 
-        JPAQuery<ProductAndThumbnailDto> query = queryFactory
-                .select(new QProductAndThumbnailDto(
-                        product.id,
-                        product.category.id.as("categoryId"),
-                        product.brandName,
-                        product.productName,
-                        product.price,
-                        product.createdAt,
-                        product.viewCount,
-                        product.purchaseCount,
-                        productImage.url,
-                        productImage.filename,
-                        product.user.userId
-                ))
-                .from(product)
-                .join(productImage).on(productImage.product.eq(product).and(productImage.isRepresentative.eq(true)));
+        ProductReadQuery productReadQuery = new ProductReadQuery();
 
-        if (    condition != null && (
-                (condition.colorCode() != null && !condition.colorCode().isEmpty()) ||
-                (condition.size() != null && !condition.size().isEmpty()) ||
-                (condition.excludeSoldOut() != null && condition.excludeSoldOut() == Boolean.TRUE))){
-             query.where(product.id.in(
-                    JPAExpressions
-                            .select(productItem.product.id)
-                            .from(productItem)
-                            .where(
-                                    colorCodeEq(condition.colorCode()),
-                                    sizeEq(condition.size()),
-                                    excludeSoldOut(condition.excludeSoldOut())
-                            )
-                            .groupBy(productItem.product.id)));
-        }
-        if (condition != null) {
-            query.where(
-                            categoryIdEq(condition.categoryId()),
-                            brandNameEq(condition.brandName()),
-                            priceGoe(condition.priceGoe()),
-                            priceLt(condition.priceLt()),
-                            sellerIdEq(condition.sellerId()))
-                    .orderBy(orderByCondition(condition.orderBy()));
-        }
+        // 서브쿼리 베이스 생성
+        ProductItemSubQuery subQuery = new ProductItemSubQuery(
+                condition == null || condition.orderBy() == null ? OrderBy.CREATED_AT : condition.orderBy(),
+                pageable.isPaged() ? pageable.getOffset() : null,
+                pageable.isPaged() ? (long)pageable.getPageSize() : null);
 
-        if (pageable.isPaged()) {
-            query.offset(pageable.getOffset());
-            query.limit(pageable.getPageSize() + 1);
-        }
+        // 서브쿼리 조건 추가 및 toString
+        String subQueryString = subQuery
+                .appendConditions()
+                .appendCategoryId(condition != null ? condition.categoryId() : null)
+                .appendBrandName(condition != null ? condition.brandName() : null)
+                .appendColorCode(condition != null ? condition.colorCode() : null)
+                .appendSize(condition != null ? condition.size() : null)
+                .appendPriceGoe(condition != null  ? condition.priceGoe(): null)
+                .appendPriceLt(condition != null ? condition.priceLt() : null)
+                .appendExcludeSoldOut(condition != null ? condition.excludeSoldOut() : null)
+                .appendOrderAndLimit()
+                .build();
 
-        List<ProductAndThumbnailDto> content = query.fetch();
+        // 쿼리 조건 추가 및 toString
+        String nativeSql = productReadQuery
+                .appendJoin(subQueryString)
+                .appendOrder(
+                        condition == null || condition.orderBy() == null ? OrderBy.CREATED_AT : condition.orderBy()
+                )
+                .build();
+
+        Query query = entityManager.createNativeQuery(nativeSql, "ProductAndThumbnailDtoMapping");
+
+        List<ProductAndThumbnailDto> content = query.getResultList();
 
         boolean hasNext = false;
         if (pageable.isPaged() && content.size() > pageable.getPageSize()) {
@@ -118,48 +102,49 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
         return new SliceImpl<>(content, pageable, hasNext);
     }
 
-    private BooleanExpression colorCodeEq(List<String> colorCode) {
-        return colorCode != null && !colorCode.isEmpty()? productItem.colorCode.in(colorCode): null;
-    }
+    @Override
+    public Slice<ProductAndThumbnailDto> findByCondition(ProductFilterCondition condition, Pageable pageable, Long offset) {
+        if (pageable == null) pageable = Pageable.unpaged();
 
-    private BooleanExpression sizeEq(List<String> size) {
-        return size != null && !size.isEmpty()? productItem.size.in(size) : null;
-    }
+        ProductReadQuery productReadQuery = new ProductReadQuery();
 
-    private BooleanExpression categoryIdEq(List<Long> categoryId) {
-        return categoryId != null && !categoryId.isEmpty()? product.category.id.in(categoryId) : null;
-    }
+        // 서브쿼리 베이스 생성
+        ProductItemSubQuery subQuery = new ProductItemSubQuery(
+                condition == null || condition.orderBy() == null ? OrderBy.CREATED_AT : condition.orderBy(),
+                offset,
+                pageable.isPaged() ? (long)pageable.getPageSize() : null);
 
-    private BooleanExpression brandNameEq(String brandName) {
-        return hasText(brandName)? product.brandName.eq(brandName) : null;
-    }
+        // 서브쿼리 조건 추가 및 toString
+        String subQueryString = subQuery
+                .appendConditions()
+                .appendCategoryId(condition != null ? condition.categoryId() : null)
+                .appendPriceGoe(condition != null  ? condition.priceGoe(): null)
+                .appendPriceLt(condition != null ? condition.priceLt() : null)
+                .appendBrandName(condition != null ? condition.brandName() : null)
+                .appendColorCode(condition != null ? condition.colorCode() : null)
+                .appendSize(condition != null ? condition.size() : null)
+                .appendExcludeSoldOut(condition != null ? condition.excludeSoldOut() : null)
+                .appendOrderAndLimit()
+                .build();
 
-    private BooleanExpression priceGoe(Long priceGoe) {
-        return priceGoe != null? product.price.goe(priceGoe) : null;
-    }
+        // 쿼리 조건 추가 및 toString
+        String nativeSql = productReadQuery
+                .appendJoin(subQueryString)
+                .appendOrder(
+                        condition == null || condition.orderBy() == null ? OrderBy.CREATED_AT : condition.orderBy()
+                )
+                .build();
 
-    private BooleanExpression priceLt(Long priceLt) {
-        return priceLt != null? product.price.lt(priceLt) : null;
-    }
+        Query query = entityManager.createNativeQuery(nativeSql, "ProductAndThumbnailDtoMapping");
 
-    private BooleanExpression sellerIdEq(Long sellerId) {
-        return sellerId != null? product.user.userId.eq(sellerId) : null;
-    }
+        List<ProductAndThumbnailDto> content = query.getResultList();
 
-    private BooleanExpression excludeSoldOut(Boolean excludeSoldOut) {
-        return excludeSoldOut != null && excludeSoldOut.equals(Boolean.TRUE) ? productItem.quantity.gt(0): null;
-    }
-
-    private OrderSpecifier<?> orderByCondition(OrderBy orderBy) {
-        if (orderBy != null) {
-            return switch (orderBy) {
-                case CREATED_AT -> product.createdAt.desc();
-                case VIEW_COUNT -> product.viewCount.desc();
-                case PURCHASE_COUNT -> product.purchaseCount.desc();
-                case PRICE_DESC ->  product.price.desc();
-                case PRICE_ASC -> product.price.asc();
-            };
+        boolean hasNext = false;
+        if (pageable.isPaged() && content.size() > pageable.getPageSize()) {
+            content.remove(pageable.getPageSize());
+            hasNext = true;
         }
-        return product.createdAt.desc();
+        return new SliceImpl<>(content, pageable, hasNext);
     }
+
 }

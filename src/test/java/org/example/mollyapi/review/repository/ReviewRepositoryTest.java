@@ -10,6 +10,7 @@ import org.example.mollyapi.product.dto.UploadFile;
 import org.example.mollyapi.product.entity.Product;
 import org.example.mollyapi.product.entity.ProductImage;
 import org.example.mollyapi.product.entity.ProductItem;
+import org.example.mollyapi.product.enums.ProductImageType;
 import org.example.mollyapi.product.repository.ProductImageRepository;
 import org.example.mollyapi.product.repository.ProductItemRepository;
 import org.example.mollyapi.product.repository.ProductRepository;
@@ -185,7 +186,7 @@ public class ReviewRepositoryTest {
                         .storedFileName("/images/product/coolfit_bra_volumefit_1.jpg")
                         .uploadFileName("coolfit_bra_volumefit_1.jpg")
                         .build())
-                .isRepresentative(true)
+                        .type(ProductImageType.THUMBNAIL)
                 .imageIndex(0L)
                 .product(product)
                 .build());
