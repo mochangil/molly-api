@@ -17,6 +17,7 @@
             SELECT item_id
             FROM product_item
             WHERE item_id BETWEEN #{startId} AND #{endId}
+            ORDER BY item_id ASC
     </select>
 
 </mapper>

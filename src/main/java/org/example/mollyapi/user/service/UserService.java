@@ -60,7 +60,6 @@ public class UserService {
      */
     private void validUser(Long userId) {
         boolean exists = userRepository.existsById(userId);
-
         if (!exists) throw new CustomException(NOT_EXISTS_USER);
     }
 
@@ -72,8 +71,7 @@ public class UserService {
      */
     @Transactional
     public ResponseEntity<?> updateUserInfo(UpdateUserReqDto updateUserReqDto, Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(NOT_EXISTS_USER));
+        User user = findByUser(userId);
 
         boolean isUpdate = user.updateUser(updateUserReqDto);
 
@@ -92,16 +90,26 @@ public class UserService {
         return ResponseEntity.status(HttpStatusCode.valueOf(204)).build();
     }
 
+
     /**
      * 사용자 정보 삭제 요청
      * @param userId 사용자 PK
      */
     @Transactional
     public void deleteUserInfo(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(NOT_EXISTS_USER));
+        User user = findByUser(userId);
 
         user.updateFlag();
+    }
+
+    /**
+     * 사용자 정보 찾기
+     * @param userId
+     * @return
+     */
+    private User findByUser(Long userId) {
+        return userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException(NOT_EXISTS_USER));
     }
 
     /**
