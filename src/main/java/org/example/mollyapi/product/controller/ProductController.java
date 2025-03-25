@@ -64,13 +64,15 @@ public class ProductController {
     })
     public ResponseEntity<ListResDto> getAllProducts(
             @ParameterObject ProductFilterConditionReqDto conditionReqDto,
-            @RequestParam int page,
+//            @RequestParam int page,
+            @RequestParam Long offsetId,
             @RequestParam int size
     ) {
-        PageRequest pageRequest = PageRequest.of(page, size);
+        PageRequest pageRequest = PageRequest.of(0, size);
 
         ProductFilterCondition condition = convertToProductFilterCondition(conditionReqDto, null);
-        Slice<ProductResDto> products = productReadService.getAllProducts(condition, pageRequest);
+        Slice<ProductResDto> products = productReadService.getAllProducts(condition, pageRequest, offsetId);
+        Long lastElementId = !products.getContent().isEmpty() ? products.getContent().get(products.getContent().size() - 1).id() : null;
 
         if (products.getContent().isEmpty()) {
             return ResponseEntity.noContent().build();
@@ -78,7 +80,7 @@ public class ProductController {
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new ListResDto(PageResDto.of(products), products.getContent()));
+                .body(new ListResDto(PageResDto.of(products, lastElementId), products.getContent()));
     }
 
     @Auth
@@ -99,14 +101,16 @@ public class ProductController {
     public ResponseEntity<ListResDto> getAllProductsBySeller(
             HttpServletRequest request,
             @ParameterObject ProductFilterConditionReqDto conditionReqDto,
-            @RequestParam int page,
+//            @RequestParam int page,
+            @RequestParam Long offsetId,
             @RequestParam int size
     ) {
-        PageRequest pageRequest = PageRequest.of(page, size);
+        PageRequest pageRequest = PageRequest.of(0, size);
         Long userId = (Long) request.getAttribute("userId");
 
         ProductFilterCondition condition = convertToProductFilterCondition(conditionReqDto, userId);
-        Slice<ProductResDto> products = productReadService.getAllProducts(condition, pageRequest);
+        Slice<ProductResDto> products = productReadService.getAllProducts(condition, pageRequest, offsetId);
+        Long lastElementId = products.getContent().get(products.getContent().size() - 1).id();
 
         if (products.getContent().isEmpty()) {
             return ResponseEntity.noContent().build();
@@ -114,7 +118,7 @@ public class ProductController {
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new ListResDto(PageResDto.of(products), products.getContent()));
+                .body(new ListResDto(PageResDto.of(products, lastElementId), products.getContent()));
     }
 
     private ProductFilterCondition convertToProductFilterCondition(
@@ -184,7 +188,8 @@ public class ProductController {
                         new PageResDto(
                                 (long) brands.getContent().size(),
                                 brands.hasNext(),
-                                brands.isFirst(),brands.isLast()
+                                brands.isFirst(),brands.isLast(),
+                                null
                         ),
                         brands.getContent()
                 ));

@@ -80,7 +80,8 @@ public class ReviewController {
                                 (long) sliceList.getNumberOfElements(), // 현재 페이지 요소 개수
                                 sliceList.hasNext(), // 다음 페이지 존재 여부
                                 sliceList.isFirst(), // 첫 번째 페이지 여부
-                                sliceList.isLast() //마지막 페이지 여부
+                                sliceList.isLast(), //마지막 페이지 여부
+                                null
                         ),
                         sliceList.getContent()
                 ));
@@ -112,7 +113,8 @@ public class ReviewController {
                                 (long) sliceList.getNumberOfElements(), // 현재 페이지 요소 개수
                                 sliceList.hasNext(), // 다음 페이지 존재 여부
                                 sliceList.isFirst(), // 첫 번째 페이지 여부
-                                sliceList.isLast() //마지막 페이지 여부
+                                sliceList.isLast(), //마지막 페이지 여부
+                                null
                         ),
                         sliceList.getContent()
                 ));
@@ -145,7 +147,8 @@ public class ReviewController {
                                 (long) sliceList.getNumberOfElements(), // 현재 페이지 요소 개수
                                 sliceList.hasNext(), // 다음 페이지 존재 여부
                                 sliceList.isFirst(), // 첫 번째 페이지 여부
-                                sliceList.isLast() //마지막 페이지 여부
+                                sliceList.isLast(), //마지막 페이지 여부
+                                null
                         ),
                         sliceList.getContent()
                 ));

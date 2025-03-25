@@ -8,6 +8,7 @@ import org.springframework.data.domain.Slice;
 
 
 public interface ProductRepositoryCustom {
-    Slice<ProductAndThumbnailDto> findByCondition(ProductFilterCondition condition, Pageable pageable);
     Slice<BrandSummaryDto> getTotalViewGroupByBrandName(Pageable pageable);
+    Slice<ProductAndThumbnailDto> findByCondition(ProductFilterCondition condition, Pageable pageable);
+    Slice<ProductAndThumbnailDto> findByCondition(ProductFilterCondition condition, Pageable pageable, Long offset);
 }

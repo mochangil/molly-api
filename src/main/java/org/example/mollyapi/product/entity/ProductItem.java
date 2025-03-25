@@ -26,6 +26,9 @@ public class ProductItem {
         @Column(name = "item_id")
         Long id;
 
+        Long categoryId;
+        String brandName;
+
         String color;
         String colorCode;
         String size;
@@ -66,6 +69,8 @@ public class ProductItem {
                 this.viewCount = product.getViewCount();
                 this.purchaseCount = product.getPurchaseCount();
                 this.createdAt = product.getCreatedAt();
+                this.brandName = product.getBrandName();
+                this.categoryId = product.getCategory() != null ? product.getCategory().getId() : null;
         }
 
         public void updateQuantity(Long quantity) {

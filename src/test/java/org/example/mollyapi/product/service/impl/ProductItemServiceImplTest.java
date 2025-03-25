@@ -6,6 +6,7 @@ import org.example.mollyapi.common.exception.error.impl.ProductItemError;
 import org.example.mollyapi.product.dto.ProductItemDto;
 import org.example.mollyapi.product.dto.ProductItemReqDto;
 import org.example.mollyapi.product.entity.Product;
+import org.example.mollyapi.product.repository.CategoryRepository;
 import org.example.mollyapi.product.repository.ProductRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ import static org.example.mollyapi.common.exception.error.impl.ProductItemError.
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
+@Transactional
 class ProductItemServiceImplTest {
 
     @Autowired
@@ -27,6 +29,8 @@ class ProductItemServiceImplTest {
 
     @Autowired
     private ProductRepository productRepository;
+    @Autowired
+    private CategoryRepository categoryRepository;
 
     @DisplayName("상품 아이템을 생성하고 상품에 추가한다")
     @Test

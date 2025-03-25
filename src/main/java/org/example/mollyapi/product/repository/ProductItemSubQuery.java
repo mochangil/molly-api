@@ -44,11 +44,11 @@ public class ProductItemSubQuery {
         if (offset != null && offset > 0) {
             query.append("WHERE\n")
                     .append("    (" + columnName + " " + sign + " (SELECT " + columnName + " FROM target)\n")
-                    .append("    OR (" + columnName + " = (SELECT " + columnName + " FROM target) AND product_id > ")
+                    .append("    OR (" + columnName + " = (SELECT " + columnName + " FROM target) AND product_id " + sign + " ")
                     .append(offset).append("))\n");
         } else {
             query.append("WHERE\n")
-                    .append("1=1");
+                    .append("1=1\n");
         }
 
         return this;
@@ -83,6 +83,45 @@ public class ProductItemSubQuery {
                 .map(code -> "'" + code + "'")
                 .collect(Collectors.joining(", "));
         query.append("  AND color_code IN (" + colorCodeString + ")\n");
+        return this;
+    }
+
+    public ProductItemSubQuery appendCategoryId(List<Long> categoryId) {
+        if (categoryId == null || categoryId.isEmpty()) {
+            return this; // 빈 리스트나 null이면 조건 추가 안 함
+        }
+
+        String categoryIdString = categoryId.stream()
+                .map(code -> "'" + code + "'")
+                .collect(Collectors.joining(", "));
+        query.append("  AND category_id IN (" + categoryIdString + ")\n");
+        return this;
+    }
+
+    public ProductItemSubQuery appendBrandName(String brandName) {
+        if (brandName == null || brandName.isEmpty()) {
+            return this; // 빈 리스트나 null이면 조건 추가 안 함
+        }
+
+        query.append("  AND brand_name = '" + brandName + "'\n");
+        return this;
+    }
+
+    public ProductItemSubQuery appendPriceGoe(Long minPrice) {
+        if (minPrice == null) {
+            return this;
+        }
+
+        query.append("   AND price >= ").append(minPrice).append("\n");
+        return this;
+    }
+
+    public ProductItemSubQuery appendPriceLt(Long maxPrice) {
+        if (maxPrice == null) {
+            return this;
+        }
+
+        query.append("   AND price < ").append(maxPrice).append("\n");
         return this;
     }
 

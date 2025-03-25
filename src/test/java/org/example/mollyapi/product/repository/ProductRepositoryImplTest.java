@@ -1,12 +1,10 @@
 package org.example.mollyapi.product.repository;
 
-import com.github.f4b6a3.tsid.TsidCreator;
 import jakarta.transaction.Transactional;
 import lombok.Getter;
 import org.example.mollyapi.product.dto.*;
 import org.example.mollyapi.product.entity.*;
 import org.example.mollyapi.product.enums.OrderBy;
-import org.example.mollyapi.product.service.impl.ProductServiceImpl;
 import org.example.mollyapi.user.entity.User;
 import org.example.mollyapi.user.repository.UserRepository;
 import org.example.mollyapi.user.type.Sex;
@@ -22,7 +20,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -30,6 +27,7 @@ import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.example.mollyapi.product.enums.ProductImageType.*;
 
 @SpringBootTest
@@ -252,6 +250,29 @@ class ProductRepositoryImplTest {
         //then
         assertThat(content).hasSize(3)
                 .extracting("brandName").contains("Adidas", "Nike", "Nike");
+    }
+
+    @DisplayName("커서 기반으로 offset를 지정해서 offset 이후에 데이터를 조회한다")
+    @Test
+    void findByCondition_Pageable() {
+        // given
+        ProductFilterCondition condition = new ProductFilterCondition(List.of("WHITE"), null, null, null, null, null, null, null, OrderBy.VIEW_COUNT);
+        // 최소값보다 비싼 상품
+        createTestProduct("WHITE", "White", "M", 2L, "Adidas", 110000L, 250L, 200L, 500L);
+        Product testProduct = createTestProduct("WHITE", "Blue", "M", 1L, "Nike", 80000L, 200L, 150L, 300L);
+        createTestProduct("WHITE", "Gray", "M", 3L, "Nike", 30000L, 150L, 130L, 100L);
+        createTestProduct("BLUE", "Gray", "M", 3L, "Nike", 30000L, 200L, 130L, 100L);
+
+        // when
+        PageRequest pageable = PageRequest.of(0, 10);
+        List<ProductAndThumbnailDto> content = productRepository.findByCondition(condition, pageable, testProduct.getId()).getContent();
+
+        //then
+        assertThat(content).hasSize(1)
+                .extracting("brandName", "categoryId")
+                .contains(
+                        tuple("Nike", 3L)
+                );
     }
 
 

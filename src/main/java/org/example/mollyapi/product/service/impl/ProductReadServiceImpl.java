@@ -32,7 +32,7 @@ public class ProductReadServiceImpl implements ProductReadService {
     private final ProductRepository productRepository;
 
     @Override
-    public Slice<ProductResDto> getAllProducts(ProductFilterCondition condition, Pageable pageable) {
+    public Slice<ProductResDto> getAllProducts(ProductFilterCondition condition, Pageable pageable, Long offsetId) {
         if (condition == null) {
             condition = ProductFilterCondition.builder().build();
         }
@@ -43,7 +43,11 @@ public class ProductReadServiceImpl implements ProductReadService {
             pageable = PageRequest.of(defaultPageNumber, defaultPageSize);
         }
 
-        Slice<ProductAndThumbnailDto> page = productRepository.findByCondition(condition, pageable);
+        if (offsetId == null) {
+            offsetId = 0L;
+        }
+
+        Slice<ProductAndThumbnailDto> page = productRepository.findByCondition(condition, pageable, offsetId);
 
         return page.map(this::convertToProductResDto);
     }
