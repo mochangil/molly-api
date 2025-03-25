@@ -311,7 +311,7 @@ class ProductRepositoryImplTest {
         // 5. 가격 최소값 필터 (50000L) + PRICE_ASC 정렬
         createTestProduct("YELLOW", "Yellow", "S", 3L, "Reebok", 55000L, 180L, 120L, 350L);
         // 6. 품절 제외 필터 + CREATED_AT 정렬
-        createTestProduct("GRAY", "Gray", "M", 2L, "UnderArmour", 75000L, 250L, 130L, 0L);  // 품절
+        createTestProduct("RED", "Gray", "M", 2L, "UnderArmour", 75000L, 250L, 130L, 0L);  // 품절
         createTestProduct("WHITE", "White", "L", 2L, "Nike", 65000L, 220L, 110L, 150L);   // 품절 아님
         // 7. 색상 (BLUE) + PRICE_DESC 정렬
         createTestProduct("BLUE", "Blue", "XL", 3L, "Puma", 85000L, 140L, 90L, 200L);
