@@ -37,7 +37,6 @@ public class ProductBulkReqDto {
 
     public Product toProduct(User user, Category category) {
         return Product.builder()
-                .id(this.id)
                 .productName(this.productName)
                 .description(this.description)
                 .brandName(this.brandName)

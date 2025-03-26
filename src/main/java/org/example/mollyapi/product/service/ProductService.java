@@ -2,6 +2,7 @@ package org.example.mollyapi.product.service;
 
 import org.example.mollyapi.product.dto.ProductDto;
 import org.example.mollyapi.product.dto.ProductItemDto;
+import org.example.mollyapi.product.dto.ProductItemReqDto;
 import org.example.mollyapi.product.dto.response.ColorDetailDto;
 import org.example.mollyapi.product.dto.response.ProductResDto;
 import org.example.mollyapi.product.entity.Product;
@@ -14,7 +15,7 @@ public interface ProductService {
     ProductResDto registerProduct(
             Long userId,
             ProductDto productDto,
-            List<ProductItemDto> productItemDtoList,
+            List<ProductItemReqDto> productItemDtoList,
             MultipartFile thumbnailImage,
             List<MultipartFile> productImages,
             List<MultipartFile> descriptionImages

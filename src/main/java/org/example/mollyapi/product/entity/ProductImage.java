@@ -3,7 +3,12 @@ package org.example.mollyapi.product.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.example.mollyapi.common.entity.Base;
+import org.example.mollyapi.common.enums.ImageType;
 import org.example.mollyapi.product.dto.UploadFile;
+import org.example.mollyapi.product.enums.ProductImageType;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Entity
@@ -28,30 +33,38 @@ public class ProductImage extends Base {
 
     @Builder
     ProductImage(UploadFile uploadFile,
-                 Boolean isProductImage,
-                 Boolean isRepresentative,
-                 Boolean isDescriptionImage,
+                 ProductImageType type,
                  Long imageIndex,
                  Product product
     ) {
         this.url = uploadFile.getStoredFileName();
         this.filename = uploadFile.getUploadFileName();
-        this.isProductImage = isProductImage;
-        this.isRepresentative = isRepresentative;
-        this.isDescriptionImage = isDescriptionImage;
+        this.isProductImage = type.equals(ProductImageType.PRODUCT);
+        this.isRepresentative = type.equals(ProductImageType.THUMBNAIL);
+        this.isDescriptionImage = type.equals(ProductImageType.DESCRIPTION);
         this.imageIndex = imageIndex;
         this.product = product;
     }
 
-    public static ProductImage createThumbnail(Product product, UploadFile uploadFile) {
-        return new ProductImage(uploadFile, false, true, false, 0L, product);
+    public static ProductImage create(Product product, UploadFile uploadFile, ProductImageType type) {
+        return ProductImage.builder()
+                .uploadFile(uploadFile)
+                .type(type)
+                .imageIndex(0L)
+                .product(product).build();
     }
 
-    public static ProductImage createProductImage(Product product, UploadFile uploadFile, long idx) {
-        return new ProductImage(uploadFile, true, false, false, idx, product);
-    }
+    public static List<ProductImage> create(Product product, List<UploadFile> uploadFile, ProductImageType type) {
+        List<ProductImage> productImages = new ArrayList<>();
 
-    public static ProductImage createDescriptionImage(Product product, UploadFile uploadFile, long idx) {
-        return new ProductImage(uploadFile, false, false, true, idx, product);
+        for (int i = 0; i < uploadFile.size(); i++) {
+            ProductImage productImage = ProductImage.builder()
+                    .uploadFile(uploadFile.get(i))
+                    .type(type)
+                    .imageIndex((long) i)
+                    .product(product).build();
+            productImages.add(productImage);
+        }
+        return productImages;
     }
 }

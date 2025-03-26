@@ -1,8 +1,9 @@
-package org.example.mollyapi.product.service;
+package org.example.mollyapi.product.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.example.mollyapi.product.dto.BrandSummaryDto;
 import org.example.mollyapi.product.repository.ProductRepository;
+import org.example.mollyapi.product.service.BrandService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;

@@ -6,14 +6,16 @@ public record PageResDto(
         Long size,
         Boolean hasNext,
         Boolean isFirst,
-        Boolean isLast
+        Boolean isLast,
+        Long lastElementId
 ) {
-    public static PageResDto of(Slice<?> slice) {
+    public static PageResDto of(Slice<?> slice, Long lastElementId) {
         return new PageResDto(
                 (long)slice.getContent().size(),
                 slice.hasNext(),
                 slice.isFirst(),
-                slice.isLast()
+                slice.isLast(),
+                lastElementId
         );
     }
 }
