@@ -32,13 +32,11 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
 
         JPAQuery<BrandSummaryDto> query = queryFactory.select(
                 new QBrandSummaryDto(
-                    productImage.url.max().as("brandThumbnail"),
+                    product.thumbnailUrl.max().as("brandThumbnail"),
                     product.brandName,
                     product.count(),
                     product.viewCount.sum().as("viewCount")))
-            .from(productImage)
-            .join(productImage.product, product)
-            .on(productImage.isRepresentative.isTrue())
+            .from(product)
             .groupBy(product.brandName)
             .orderBy(product.viewCount.sum().desc());
 
