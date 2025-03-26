@@ -1,32 +1,35 @@
 package org.example.mollyapi.cart.repository;
 
-import com.github.f4b6a3.tsid.TsidCreator;
-import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.EntityManager;
 import org.example.mollyapi.cart.dto.Response.CartInfoDto;
 import org.example.mollyapi.cart.entity.Cart;
 import org.example.mollyapi.product.dto.UploadFile;
+import org.example.mollyapi.product.entity.Category;
 import org.example.mollyapi.product.entity.Product;
 import org.example.mollyapi.product.entity.ProductImage;
 import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.enums.ProductImageType;
+import org.example.mollyapi.product.repository.CategoryRepository;
 import org.example.mollyapi.product.repository.ProductImageRepository;
 import org.example.mollyapi.product.repository.ProductItemRepository;
 import org.example.mollyapi.product.repository.ProductRepository;
 import org.example.mollyapi.user.entity.User;
 import org.example.mollyapi.user.repository.UserRepository;
 import org.example.mollyapi.user.type.Sex;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
+
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -51,20 +54,23 @@ public class CartRepositoryTest {
     private ProductItemRepository productItemRepository;
 
     @Autowired
-    EntityManager entityManager;
-    private JPAQueryFactory queryFactory;
+    private CategoryRepository categoryRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @DisplayName("장바구니에 동일한 상품이 담겨있는 않은 지 조회한다.")
     @Test
     void findProductItemNotExistInCart() {
         //given
-        Long userId = 1L;
-        Product testProduct = createAndSaveProduct();
+        User testUser = createAndSaveUser("사과");
+        Category category = categoryRepository.findById(2L).orElse(null);
+        Product testProduct = createAndSaveProduct(category, testUser);
         ProductImage testImage = createAndSaveProductImage(testProduct);
         ProductItem testItem = createAndSaveProductItem("S", testProduct);
 
         //when
-        Cart cart = cartRepository.findByProductItemIdAndUserUserId(testItem.getId(), userId);
+        Cart cart = cartRepository.findByProductItemIdAndUserUserId(testItem.getId(), testUser.getUserId());
 
         //then
         assertThat(cart).isNull();
@@ -74,8 +80,9 @@ public class CartRepositoryTest {
     @Test
     void findProductItemExistInCart() {
         //given
-        User testUser = createAndSaveUser();
-        Product testProduct = createAndSaveProduct();
+        User testUser = createAndSaveUser("수박");
+        Category category = categoryRepository.findById(2L).orElse(null);
+        Product testProduct = createAndSaveProduct(category, testUser);
         ProductImage testImage = createAndSaveProductImage(testProduct);
         ProductItem testItem = createAndSaveProductItem("S", testProduct);
         Cart testCart = createAndSaveCart(2L, testUser, testItem);
@@ -94,7 +101,7 @@ public class CartRepositoryTest {
     @CsvSource({"0, true", "1, false"})
     @DisplayName("장바구니에 담긴 수량을 조회할 때, 장바구니 최대수량에 따라 상태값을 반환한다.")
     void checkMaxCart(int flag, boolean status) {
-        User testUser = createAndSaveUser();
+        User testUser = createAndSaveUser("감자");
         if(flag == 0) create30Carts(testUser);
 
         //given //when
@@ -108,8 +115,9 @@ public class CartRepositoryTest {
     @Test
     void findByCartIdAndUserId_Success() {
         //given
-        User testUser = createAndSaveUser();
-        Product testProduct = createAndSaveProduct();
+        User testUser = createAndSaveUser("딸기");
+        Category category = categoryRepository.findById(2L).orElse(null);
+        Product testProduct = createAndSaveProduct(category, testUser);
         ProductImage testImage = createAndSaveProductImage(testProduct);
         ProductItem testItem = createAndSaveProductItem("S", testProduct);
         Cart testCart = createAndSaveCart(3L, testUser, testItem);
@@ -141,8 +149,9 @@ public class CartRepositoryTest {
     @Test
     void findAllCartInfoByUserId() {
         //given
-        User testUser = createAndSaveUser();
-        Product testProduct = createAndSaveProduct();
+        User testUser = createAndSaveUser("용과");
+        Category category = categoryRepository.findById(2L).orElse(null);
+        Product testProduct = createAndSaveProduct(category, testUser);
         ProductImage testImage = createAndSaveProductImage(testProduct);
         ProductItem firstItem = createAndSaveProductItem("L", testProduct);
         ProductItem secondItem = createAndSaveProductItem("L", testProduct);
@@ -162,10 +171,39 @@ public class CartRepositoryTest {
                 );
     }
 
-    private User createAndSaveUser() {
+    @Nested
+    @DisplayName("만료된 장바구니")
+    class ExpiredCart {
+
+        @BeforeEach
+        void setUp() throws IOException {
+            String sql = new String(Files.readAllBytes(Paths.get("src/test/resources/cartSetup.sql")));
+            jdbcTemplate.execute(sql);
+        }
+
+        @DisplayName("만료된 장바구니 내역을 조회한다.")
+        @Test
+        void findExpiredCartId() {
+            //given
+            Cart testCart1 = cartRepository.findByProductItemIdAndUserUserId(1L, 1L);
+            Cart testCart2 = cartRepository.findByProductItemIdAndUserUserId(2L, 1L);
+            Cart testCart3 = cartRepository.findByProductItemIdAndUserUserId(3L, 1L);
+
+            //when
+            List<Long> expiredCartIdList = cartRepository.getExpiredCartId();
+
+            //then
+            assertThat(expiredCartIdList).hasSize(2);
+            assertThat(expiredCartIdList)
+                    .extracting(cartId -> cartId)
+                    .containsExactly(testCart1.getCartId(), testCart2.getCartId());
+        }
+    }
+
+    private User createAndSaveUser(String nickname) {
         return userRepository.save(User.builder()
                 .sex(Sex.FEMALE)
-                .nickname("사과")
+                .nickname(nickname)
                 .cellPhone("01011112222")
                 .birth(LocalDate.of(2000, 1, 2))
                 .profileImage("default.jpg")
@@ -173,18 +211,21 @@ public class CartRepositoryTest {
                 .build());
     }
 
-    private Product createAndSaveProduct() {
+    private Product createAndSaveProduct(Category category, User user) {
         return productRepository.save(Product.builder()
-                .id(TsidCreator.getTsid().toLong())
-                .productName("테스트 상품")
+                .category(category)
                 .brandName("테스트 브랜드")
+                .productName("테스트 상품")
                 .price(50000L)
+                .description("테스트 상품 설명")
+                .user(user)
+                .thumbnailUrl("/image/product/default.jpg")
+                .thumbnailFilename("default.jpg")
                 .build());
     }
 
     private ProductItem createAndSaveProductItem(String size, Product product) {
         return productItemRepository.save(ProductItem.builder()
-                .id(TsidCreator.getTsid().toLong())
                 .color("WHITE")
                 .colorCode("#FFFFFF")
                 .size(size)
@@ -214,7 +255,9 @@ public class CartRepositoryTest {
     }
 
     private void create30Carts(User user) {
-        Product testProduct = createAndSaveProduct();
+        User testUser = createAndSaveUser("포도");
+        Category category = categoryRepository.findById(2L).orElse(null);
+        Product testProduct = createAndSaveProduct(category, testUser);
         createAndSaveCart(1L, user, createAndSaveProductItem("KID", testProduct));
         createAndSaveCart(2L, user, createAndSaveProductItem("XS", testProduct));
         createAndSaveCart(3L, user, createAndSaveProductItem("S", testProduct));
@@ -226,7 +269,7 @@ public class CartRepositoryTest {
         createAndSaveCart(3L, user, createAndSaveProductItem("4XL", testProduct));
         createAndSaveCart(1L, user, createAndSaveProductItem("FREE", testProduct));
 
-        Product testProduct2 = createAndSaveProduct();
+        Product testProduct2 = createAndSaveProduct(category, testUser);
         createAndSaveCart(1L, user, createAndSaveProductItem("KID", testProduct2));
         createAndSaveCart(2L, user, createAndSaveProductItem("XS", testProduct2));
         createAndSaveCart(3L, user, createAndSaveProductItem("S", testProduct2));
@@ -238,7 +281,7 @@ public class CartRepositoryTest {
         createAndSaveCart(3L, user, createAndSaveProductItem("4XL", testProduct2));
         createAndSaveCart(1L, user, createAndSaveProductItem("FREE", testProduct2));
 
-        Product testProduct3 = createAndSaveProduct();
+        Product testProduct3 = createAndSaveProduct(category, testUser);
         createAndSaveCart(1L, user, createAndSaveProductItem("KID", testProduct3));
         createAndSaveCart(2L, user, createAndSaveProductItem("XS", testProduct3));
         createAndSaveCart(3L, user, createAndSaveProductItem("S", testProduct3));

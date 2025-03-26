@@ -5,7 +5,7 @@ import org.example.mollyapi.cart.dto.Request.AddCartReqDto;
 import org.example.mollyapi.cart.dto.Request.UpdateCartReqDto;
 import org.example.mollyapi.cart.dto.Response.CartInfoDto;
 import org.example.mollyapi.cart.dto.Response.CartInfoResDto;
-import org.example.mollyapi.cart.service.impl.CartServiceImpl;
+import org.example.mollyapi.cart.service.CartService;
 import org.example.mollyapi.common.config.ApiQueryCounter;
 import org.example.mollyapi.product.dto.response.ColorDetailDto;
 import org.example.mollyapi.product.dto.response.SizeDetailDto;
@@ -37,7 +37,7 @@ public class CartControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private CartServiceImpl cartService;
+    private CartService cartService;
 
     @DisplayName("장바구니에 상품을 등록한다.")
     @Test
