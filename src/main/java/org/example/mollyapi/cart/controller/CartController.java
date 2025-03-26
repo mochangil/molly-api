@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.mollyapi.cart.dto.Request.AddCartReqDto;
 import org.example.mollyapi.cart.dto.Request.UpdateCartReqDto;
 import org.example.mollyapi.cart.dto.Response.CartInfoResDto;
-import org.example.mollyapi.cart.service.impl.CartServiceImpl;
+import org.example.mollyapi.cart.service.CartService;
 import org.example.mollyapi.common.dto.CommonResDto;
 import org.example.mollyapi.common.exception.CustomErrorResponse;
 import org.example.mollyapi.user.auth.annotation.Auth;
@@ -26,7 +26,7 @@ import java.util.List;
 @RequestMapping("/cart")
 @RequiredArgsConstructor
 public class CartController {
-    private final CartServiceImpl cartService;
+    private final CartService cartService;
 
     @Auth
     @PostMapping("/add")

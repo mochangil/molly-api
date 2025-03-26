@@ -13,7 +13,7 @@ import org.example.mollyapi.common.exception.CustomException;
 import org.example.mollyapi.product.dto.response.ColorDetailDto;
 import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.repository.ProductItemRepository;
-import org.example.mollyapi.product.service.impl.ProductServiceImpl;
+import org.example.mollyapi.product.service.ProductService;
 import org.example.mollyapi.user.entity.User;
 import org.example.mollyapi.user.service.UserService;
 import org.springframework.stereotype.Service;
@@ -29,7 +29,7 @@ import static org.example.mollyapi.common.exception.error.impl.ProductItemError.
 @Service
 @RequiredArgsConstructor
 public class CartServiceImpl implements CartService {
-    private final ProductServiceImpl productService;
+    private final ProductService productService;
     private final ProductItemRepository productItemRep;
     private final CartRepository cartRep;
     private final UserService userService;
@@ -194,18 +194,5 @@ public class CartServiceImpl implements CartService {
     public void checkStock(Long itemQuantity, Long changeQuantity) {
         if(itemQuantity == 0 || itemQuantity < changeQuantity)
             throw new CustomException(OVER_QUANTITY);
-    }
-
-    /**
-     * 장바구니 보관기간이 365일은 넘긴 상품 삭제
-     * */
-    public void deleteExpiredCarts() {
-        List<Long> expiredCartIdList = cartRep.getExpiredCartId();
-        if(expiredCartIdList.isEmpty())
-            log.info("만료된 장바구니 내역이 존재하지 않습니다.");
-
-        for(Long cartId : expiredCartIdList) {
-            cartRep.deleteById(cartId);
-        }
     }
 }
