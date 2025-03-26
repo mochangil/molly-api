@@ -11,6 +11,5 @@ public interface CartRepository extends JpaRepository<Cart, Long>, CartCustomRep
     Cart findByProductItemIdAndUserUserId(Long itemId, Long userId);
 
     Optional<Cart> findByCartIdAndUserUserId(Long cartId, Long userId);
-    Optional<Cart> findById(Long cartId); // cartId로 장바구니 조회
     boolean existsByProductItemIdAndUserUserId(Long itemId, Long userId);
 }
