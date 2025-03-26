@@ -17,6 +17,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
@@ -281,6 +282,79 @@ class ProductRepositoryImplTest {
 
         //then
         assertThat(content).hasSize(1)
+                .extracting("brandName", "categoryId")
+                .contains(
+                        tuple("Nike", 3L)
+                );
+    }
+
+    @DisplayName("offset이 null이거나 0이면 조회 결과의 첫 요소를 기준으로 사이즈만큼 가져오고 isFirst는 true이다")
+    @Test
+    void findByCondition_firstPage() {
+        // given
+        ProductFilterCondition condition = new ProductFilterCondition(List.of("WHITE"), null, null, null, null, null, null, null, OrderBy.VIEW_COUNT);
+        // 최소값보다 비싼 상품
+        createTestProduct("WHITE", "White", "M", 2L, "Adidas", 110000L, 250L, 200L, 500L);
+        createTestProduct("WHITE", "Blue", "M", 1L, "Nike", 80000L, 200L, 150L, 300L);
+        createTestProduct("WHITE", "Gray", "M", 3L, "Nike", 30000L, 150L, 130L, 100L);
+        createTestProduct("BLUE", "Gray", "M", 3L, "Nike", 30000L, 200L, 130L, 100L);
+
+        // when
+        PageRequest pageable = PageRequest.of(0, 1);
+        Slice<ProductAndThumbnailDto> byCondition = productRepository.findByCondition(condition, pageable, 0L);
+
+        //then
+        assertThat(byCondition.isFirst()).isTrue();
+        assertThat(byCondition.getContent()).hasSize(1)
+                .extracting("brandName", "categoryId")
+                .contains(
+                        tuple("Adidas", 2L)
+                );
+    }
+
+    @DisplayName("offset이 조회 결과의 중간이면서 다음 데이터가 남아있으면 isFirst와 isLast는 false이다")
+    @Test
+    void findByCondition_midPage() {
+        // given
+        ProductFilterCondition condition = new ProductFilterCondition(List.of("WHITE"), null, null, null, null, null, null, null, OrderBy.VIEW_COUNT);
+        // 최소값보다 비싼 상품
+        Product testProduct = createTestProduct("WHITE", "White", "M", 2L, "Adidas", 110000L, 250L, 200L, 500L);
+        createTestProduct("WHITE", "Blue", "M", 1L, "Nike", 80000L, 200L, 150L, 300L);
+        createTestProduct("WHITE", "Gray", "M", 3L, "Nike", 30000L, 150L, 130L, 100L);
+        createTestProduct("BLUE", "Gray", "M", 3L, "Nike", 30000L, 200L, 130L, 100L);
+
+        // when
+        PageRequest pageable = PageRequest.of(0, 1);
+        Slice<ProductAndThumbnailDto> byCondition = productRepository.findByCondition(condition, pageable, testProduct.getId());
+
+        //then
+        assertThat(byCondition.isFirst()).isFalse();
+        assertThat(byCondition.isLast()).isFalse();
+        assertThat(byCondition.getContent()).hasSize(1)
+                .extracting("brandName", "categoryId")
+                .contains(
+                        tuple("Nike", 1L)
+                );
+    }
+
+    @DisplayName("조회 결과의 다음 데이터가 남아있지 않다면 isLast는 true이다")
+    @Test
+    void findByCondition_lastPage() {
+        // given
+        ProductFilterCondition condition = new ProductFilterCondition(List.of("WHITE"), null, null, null, null, null, null, null, OrderBy.VIEW_COUNT);
+        // 최소값보다 비싼 상품
+        createTestProduct("WHITE", "White", "M", 2L, "Adidas", 110000L, 250L, 200L, 500L);
+        Product testProduct = createTestProduct("WHITE", "Blue", "M", 1L, "Nike", 80000L, 200L, 150L, 300L);
+        createTestProduct("WHITE", "Gray", "M", 3L, "Nike", 30000L, 150L, 130L, 100L);
+        createTestProduct("BLUE", "Gray", "M", 3L, "Nike", 30000L, 200L, 130L, 100L);
+
+        // when
+        PageRequest pageable = PageRequest.of(0, 1);
+        Slice<ProductAndThumbnailDto> byCondition = productRepository.findByCondition(condition, pageable, testProduct.getId());
+
+        //then
+        assertThat(byCondition.isLast()).isTrue();
+        assertThat(byCondition.getContent()).hasSize(1)
                 .extracting("brandName", "categoryId")
                 .contains(
                         tuple("Nike", 3L)
