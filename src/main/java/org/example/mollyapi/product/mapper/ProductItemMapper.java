@@ -1,5 +1,6 @@
 package org.example.mollyapi.product.mapper;
 
+import java.util.Set;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.example.mollyapi.product.dto.request.ProductBulkItemReqDto;
@@ -13,7 +14,7 @@ public interface ProductItemMapper {
     void insertProductItems(@Param("productItems") List<ProductBulkItemReqDto> productItems,
                             @Param("now") LocalDateTime now);
 
-    List<Long> getProductsByIdRange(@Param("startId") Long startId,
-                                    @Param("endId") Long endId);
+    Set<Long> getProductsByIdRangeSet(@Param("startId") Long startId,
+        @Param("endId") Long endId);
 
 }
