@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.example.mollyapi.common.exception.error.impl.ProductItemError.NOT_EXISTS_PRODUCT;
+import static org.example.mollyapi.common.exception.error.impl.ProductItemError.*;
 
 @Service
 public class ProductItemServiceImpl {
@@ -66,5 +66,15 @@ public class ProductItemServiceImpl {
         }
 
         return item.getQuantity();
+    }
+
+    /**
+     * 상품 아이템 정보 조회
+     * @param id 상품 아이템 Pk
+     * @return ProductItem entity
+     * */
+    public ProductItem findByProductItem(Long id) {
+        return productItemRepository.findById(id)
+                .orElseThrow(() -> new CustomException(NOT_EXISTS_ITEM));
     }
 }

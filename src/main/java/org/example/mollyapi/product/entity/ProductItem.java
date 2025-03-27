@@ -112,6 +112,10 @@ public class ProductItem {
                 log.info("재고 복구 완료: 상품 ID={}, 최종 재고={}", this.id, this.quantity);
         }
 
+        public boolean validStock(Long quantity) {
+                return quantity > 0 && this.quantity >= quantity;
+        }
+
 //        /**
 //         * 재고 차감 (낙관적 락 적용)
 //         */
