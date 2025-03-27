@@ -2,31 +2,59 @@ package org.example.mollyapi.payment.event.handler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.mollyapi.order.event.event.order.OrderProcessEvent;
+import org.example.mollyapi.order.event.V2.event.order.OrderProcessEvent;
 import org.example.mollyapi.payment.event.event.PaymentApprovedEvent;
 import org.example.mollyapi.payment.event.event.PaymentFailedEvent;
-import org.example.mollyapi.payment.service.PaymentService;
+import org.example.mollyapi.payment.service.impl.PaymentServiceImpl;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class PaymentEventHandler {
-    private final PaymentService paymentService;
+    private final PaymentServiceImpl paymentService;
+    private final ConcurrentMap<String, CompletableFuture<Boolean>> paymentResultMap = new ConcurrentHashMap<>();
 
-    @EventListener
-    public void handleOrderProcessEvent(OrderProcessEvent event) {
-        paymentService.processPayment(event.userId(), event.paymentConfirmReqDto());
+    public CompletableFuture<Boolean> registerPaymentFuture(String tossOrderId) {
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        paymentResultMap.put(tossOrderId, future);
+        return future;
     }
 
+
     @EventListener
+    @Async("processOrderExecutor")
+    @Transactional
+    public void handleOrderProcessEvent(OrderProcessEvent event) {
+        paymentService.processPaymentV2(event.userId(), event.paymentConfirmReqDto());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Async("paymentExecutor")
     public void handlePaymentApprovedEvent(PaymentApprovedEvent event) {
+        CompletableFuture<Boolean> future = paymentResultMap.remove(event.tossOrderId());
+        if (future != null) {
+            future.complete(true);
+        }
         paymentService.approvePayment(event.paymentKey());
     }
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Async("paymentExecutor")
     public void handlePaymentFailedEvent(PaymentFailedEvent event) {
+        CompletableFuture<Boolean> future = paymentResultMap.remove(event.tossOrderId());
+        if (future != null) {
+            future.complete(false);
+        }
         paymentService.failPayment(event.paymentId(),event.error());
     }
 }

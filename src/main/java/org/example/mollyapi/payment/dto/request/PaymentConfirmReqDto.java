@@ -8,8 +8,8 @@ import org.example.mollyapi.delivery.dto.DeliveryReqDto;
 @Builder
 public record PaymentConfirmReqDto(
 
-        @Schema(description = "주문 ID", example = "10")
-        Long orderId,
+//        @Schema(description = "주문 ID", example = "10")
+//        Long orderId,
         @Schema(description = "토스 주문 ID", example = "ORD-20250213132349-6572")
         String tossOrderId,
         @Schema(description = "토스 결제 KEY", example = "ORD-20250218131035-3409")

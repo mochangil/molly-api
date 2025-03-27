@@ -159,29 +159,29 @@ public class OrderController {
         }
     }
 
-    @Auth
-    @PostMapping("/{orderId}/payment/test")
-    @Operation(summary = "주문 결제 요청 API", description = "주문에 대한 결제 요청 및 성공/실패 처리")
-    public ResponseEntity<PaymentResDto> processPaymentTest(
-            HttpServletRequest request,
-            @RequestParam String status,
-            @Valid @RequestBody OrderConfirmRequestDto orderConfirmRequestDto) {
-
-        Long userId = (Long) request.getAttribute("userId");
-
-        PaymentResDto response = orderServiceImpl.processPaymentTest(
-                userId,
-                orderConfirmRequestDto.paymentKey(),
-                orderConfirmRequestDto.tossOrderId(),
-                orderConfirmRequestDto.amount(),
-                orderConfirmRequestDto.point(),
-                orderConfirmRequestDto.paymentType(),
-                orderConfirmRequestDto.delivery(),
-                status
-        );
-
-        return ResponseEntity.ok(response);
-    }
+//    @Auth
+//    @PostMapping("/{orderId}/payment/test")
+//    @Operation(summary = "주문 결제 요청 API", description = "주문에 대한 결제 요청 및 성공/실패 처리")
+//    public ResponseEntity<PaymentResDto> processPaymentTest(
+//            HttpServletRequest request,
+//            @RequestParam String status,
+//            @Valid @RequestBody OrderConfirmRequestDto orderConfirmRequestDto) {
+//
+//        Long userId = (Long) request.getAttribute("userId");
+//
+//        PaymentResDto response = orderServiceImpl.processPaymentTest(
+//                userId,
+//                orderConfirmRequestDto.paymentKey(),
+//                orderConfirmRequestDto.tossOrderId(),
+//                orderConfirmRequestDto.amount(),
+//                orderConfirmRequestDto.point(),
+//                orderConfirmRequestDto.paymentType(),
+//                orderConfirmRequestDto.delivery(),
+//                status
+//        );
+//
+//        return ResponseEntity.ok(response);
+//    }
 
 //    /**
 //     * 결제 실패 후 사용자 선택 API

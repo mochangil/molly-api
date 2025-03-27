@@ -1,6 +1,4 @@
-package org.example.mollyapi.order.event.event.order;
-
-import org.example.mollyapi.delivery.dto.DeliveryReqDto;
+package org.example.mollyapi.order.event.V2.event.order;
 
 public record OrderPreProcessEvent(
         Long userId,

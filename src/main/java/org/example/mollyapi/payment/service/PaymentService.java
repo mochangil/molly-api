@@ -20,7 +20,7 @@ public interface PaymentService {
     //결제 승인 절차
     Payment processPayment(Long userId, PaymentConfirmReqDto requestDto);
 
-    Payment processPaymentTest(Long userId, PaymentConfirmReqDto requestDto, String status);
+//    Payment processPaymentTest(Long userId, PaymentConfirmReqDto requestDto, String status);
 
     public void approvePayment(String paymentKey);
 
@@ -41,5 +41,5 @@ public interface PaymentService {
 
     public Payment createPayment(Long userId, Long orderId, String tossOrderId, String paymentKey, String paymentType, Long amount);
 
-    Payment retryPayment(Long userId, String tossOrderId, String paymentKey);
+//    Payment retryPayment(Long userId, String tossOrderId, String paymentKey);
 }

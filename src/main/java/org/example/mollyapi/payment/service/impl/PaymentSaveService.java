@@ -15,8 +15,9 @@ public class PaymentSaveService {
 
     private final PaymentRepository paymentRepository;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public Payment persistPayment(Payment payment) {
+        System.out.println("he");
         return paymentRepository.saveAndFlush(payment);
     }
 }

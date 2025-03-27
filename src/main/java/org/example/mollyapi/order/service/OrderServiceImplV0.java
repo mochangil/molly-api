@@ -15,10 +15,10 @@ import org.example.mollyapi.delivery.repository.DeliveryRepository;
 import org.example.mollyapi.delivery.type.DeliveryStatus;
 import org.example.mollyapi.order.dto.*;
 import org.example.mollyapi.order.entity.*;
-import org.example.mollyapi.order.event.event.order.OrderInitiateEvent;
-import org.example.mollyapi.order.event.event.order.OrderPostProcessEvent;
-import org.example.mollyapi.order.event.event.order.OrderPreProcessEvent;
-import org.example.mollyapi.order.event.event.order.OrderProcessEvent;
+import org.example.mollyapi.order.event.V2.event.order.OrderInitiateEvent;
+import org.example.mollyapi.order.event.V2.event.order.OrderPostProcessEvent;
+import org.example.mollyapi.order.event.V2.event.order.OrderPreProcessEvent;
+import org.example.mollyapi.order.event.V2.event.order.OrderProcessEvent;
 import org.example.mollyapi.order.repository.OrderDetailRepository;
 import org.example.mollyapi.order.repository.OrderRepository;
 import org.example.mollyapi.order.type.CancelStatus;
@@ -27,7 +27,6 @@ import org.example.mollyapi.payment.dto.request.PaymentConfirmReqDto;
 import org.example.mollyapi.payment.dto.response.PaymentResDto;
 import org.example.mollyapi.payment.entity.Payment;
 import org.example.mollyapi.payment.repository.PaymentRepository;
-import org.example.mollyapi.payment.service.PaymentService;
 import org.example.mollyapi.payment.type.PaymentStatus;
 import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.repository.ProductItemRepository;
@@ -47,13 +46,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class OrderServiceImplV2 {
+public class OrderServiceImplV0 {
     private final OrderRepository orderRepository;
     private final OrderDetailRepository orderDetailRepository;
     private final ProductItemRepository productItemRepository;
@@ -63,7 +61,6 @@ public class OrderServiceImplV2 {
     private final AddressRepository addressRepository;
     private final ReviewRepository reviewRepository;
     private final CartRepository cartRepository;
-    private final PaymentService paymentService;
     private final OrderStockService validationService;
 
 
@@ -305,43 +302,43 @@ public class OrderServiceImplV2 {
         return Delivery.from(deliveryInfo, orderId);
     }
 
-    /**
-     * 결제 실패 - 결제 자동 재시도
-     */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-//    @Transactional
-    public void handlePaymentFailure(Payment payment, String tossOrderId, String failureReason) {
-        System.out.println("----------------------------------재시도 트랜잭션 시작----------------------------------");
-        log.error("결제 실패 - 주문 트랜잭션 유지, 결제만 롤백 진행: tossOrderId={}, failureReason={}", tossOrderId, failureReason);
-
-        // 주문 조회
-        Order order = orderRepository.findByTossOrderId(tossOrderId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 주문을 찾을 수 없습니다. tossOrderId=" + tossOrderId));
-
-        // 결제 자동 재시도 3회 실행
-        // @retryable or 쓰레드 슬립
-        for (int i = 1; i <= 3; i++) {
-            Payment retriedPayment = paymentService.retryPayment(payment.getUser().getUserId(), tossOrderId, payment.getPaymentKey());
-
-            if (retriedPayment.getStatus() == PaymentStatus.APPROVED) {
-                log.info("결제 재시도 성공: tossOrderId={}", tossOrderId);
-
-                // 결제 성공 시 주문 업데이트
-                order.addPayment(retriedPayment);
-                order.updateStatus(OrderStatus.SUCCEEDED);
-                orderRepository.save(order);
-                System.out.println("----------------------------------재시도 트랜잭션 종료----------------------------------");
-                return;
-            }
-            log.warn("결제 재시도 실패 {}/3: tossOrderId={}", i, tossOrderId);
-        }
-
-        // 자동 재시도 3회 실패 시 주문 상태 PENDING 유지. 사용자가 수동 재시도 가능
-        log.error("결제 재시도 3회 실패 - 주문을 기존 상태로 유지: tossOrderId={}", tossOrderId);
-
-        // 사용자에게 재시도 여부를 물음
-        throw new CustomException(OrderError.PAYMENT_RETRY_REQUIRED); // "결제가 실패했습니다. 다시 시도하시겠습니까? (API: /orders/{orderId}/fail-payment)"
-    }
+//    /**
+//     * 결제 실패 - 결제 자동 재시도
+//     */
+//    @Transactional(propagation = Propagation.REQUIRES_NEW)
+////    @Transactional
+//    public void handlePaymentFailure(Payment payment, String tossOrderId, String failureReason) {
+//        System.out.println("----------------------------------재시도 트랜잭션 시작----------------------------------");
+//        log.error("결제 실패 - 주문 트랜잭션 유지, 결제만 롤백 진행: tossOrderId={}, failureReason={}", tossOrderId, failureReason);
+//
+//        // 주문 조회
+//        Order order = orderRepository.findByTossOrderId(tossOrderId)
+//                .orElseThrow(() -> new IllegalArgumentException("해당 주문을 찾을 수 없습니다. tossOrderId=" + tossOrderId));
+//
+//        // 결제 자동 재시도 3회 실행
+//        // @retryable or 쓰레드 슬립
+//        for (int i = 1; i <= 3; i++) {
+//            Payment retriedPayment = paymentService.retryPayment(payment.getUser().getUserId(), tossOrderId, payment.getPaymentKey());
+//
+//            if (retriedPayment.getStatus() == PaymentStatus.APPROVED) {
+//                log.info("결제 재시도 성공: tossOrderId={}", tossOrderId);
+//
+//                // 결제 성공 시 주문 업데이트
+//                order.addPayment(retriedPayment);
+//                order.updateStatus(OrderStatus.SUCCEEDED);
+//                orderRepository.save(order);
+//                System.out.println("----------------------------------재시도 트랜잭션 종료----------------------------------");
+//                return;
+//            }
+//            log.warn("결제 재시도 실패 {}/3: tossOrderId={}", i, tossOrderId);
+//        }
+//
+//        // 자동 재시도 3회 실패 시 주문 상태 PENDING 유지. 사용자가 수동 재시도 가능
+//        log.error("결제 재시도 3회 실패 - 주문을 기존 상태로 유지: tossOrderId={}", tossOrderId);
+//
+//        // 사용자에게 재시도 여부를 물음
+//        throw new CustomException(OrderError.PAYMENT_RETRY_REQUIRED); // "결제가 실패했습니다. 다시 시도하시겠습니까? (API: /orders/{orderId}/fail-payment)"
+//    }
 
 
     /**
@@ -590,8 +587,8 @@ public class OrderServiceImplV2 {
                 .sum();
     }
 
-    @Transactional
-    public PaymentResDto processOrder(Long userId, String paymentKey, String tossOrderId, Long amount, String point, String paymentType, DeliveryReqDto deliveryInfo) {
+//    @Transactional
+    public PaymentResDto processPayment(Long userId, String paymentKey, String tossOrderId, Long amount, String point, String paymentType, DeliveryReqDto deliveryInfo) {
 
         /// 1. 사용자 조회
         userRepository.findById(userId)
@@ -604,11 +601,9 @@ public class OrderServiceImplV2 {
         publisher.publishEvent(new OrderInitiateEvent(tossOrderId));
 
         ///  3. order process 전 처리 - stock, point
-        ///  비동기 병렬처리 후 future
         publisher.publishEvent(new OrderPreProcessEvent(userId, tossOrderId, point));
 
         ///  4. order Process - cart, delivery, payment
-        ///  비동기 병렬처리 후 future?
         PaymentConfirmReqDto paymentConfirmReqDto = getPaymentConfirmReqDto(order);
         publisher.publishEvent(new OrderProcessEvent(userId, tossOrderId, deliveryInfo, paymentConfirmReqDto));
 
@@ -624,7 +619,7 @@ public class OrderServiceImplV2 {
         Order order = orderRepository.findByTossOrderId(tossOrderId)
                 .orElseThrow( () -> new CustomException(PaymentError.ORDER_NOT_FOUND));
         Payment payment = paymentRepository.findByPaymentKey(paymentKey)
-                        .orElseThrow(() -> new CustomException(PaymentError.PAYMENT_NOT_FOUND));
+                .orElseThrow( () -> new CustomException(PaymentError.PAYMENT_NOT_FOUND));
         order.updateStatus(OrderStatus.SUCCEEDED);
         order.addPayment(payment);
         orderRepository.save(order);
@@ -634,7 +629,7 @@ public class OrderServiceImplV2 {
 
     private PaymentConfirmReqDto getPaymentConfirmReqDto(Order order) {
         return new PaymentConfirmReqDto(
-                order.getId(),
+//                order.getId(),
                 order.getTossOrderId(),
                 order.getPaymentId(),
                 order.getTotalAmount(),

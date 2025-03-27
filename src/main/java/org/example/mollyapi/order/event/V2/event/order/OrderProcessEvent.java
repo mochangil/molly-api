@@ -1,4 +1,4 @@
-package org.example.mollyapi.order.event.event.order;
+package org.example.mollyapi.order.event.V2.event.order;
 
 
 import org.example.mollyapi.delivery.dto.DeliveryReqDto;

@@ -2,7 +2,9 @@ package org.example.mollyapi.order.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.example.mollyapi.delivery.dto.DeliveryReqDto;
 import org.example.mollyapi.delivery.entity.Delivery;
+import org.example.mollyapi.order.event.V3.event.order.OrderInitiateEvent;
 import org.example.mollyapi.order.type.CancelStatus;
 import org.example.mollyapi.order.type.OrderStatus;
 import org.example.mollyapi.payment.entity.Payment;
@@ -39,7 +41,7 @@ public class Order {
     @JoinColumn(name = "delivery_id")
     private Delivery delivery;
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "order", cascade = CascadeType.MERGE, orphanRemoval = true)
     private List<Payment> payments = new ArrayList<>();
 
     @Column(nullable = false)
@@ -126,6 +128,12 @@ public class Order {
 //                    this.orderedAt = payment.getPaymentDate();
 //                });
 //    }
+
+    public void addOrderInfo(String paymentKey, Long amount, String paymentType) {
+        this.paymentId = paymentKey;
+        this.paymentAmount = amount;
+        this.paymentType = paymentType;
+    }
 
     public void addPayment(Payment payment) {
         if (payment == null) return;

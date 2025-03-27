@@ -30,6 +30,6 @@ public interface OrderService {
     String cancelOrder(Long orderId);
     void expireOrder(Long orderId);
     PaymentResDto processPayment(Long userId, String paymentKey, String tossOrderId, Long amount, String point, String paymentType, DeliveryReqDto deliveryInfo);
-    PaymentResDto processPaymentTest(Long userId, String paymentKey, String tossOrderId, Long amount, String point, String paymentType, DeliveryReqDto deliveryInfo, String status);
+//    PaymentResDto processPaymentTest(Long userId, String paymentKey, String tossOrderId, Long amount, String point, String paymentType, DeliveryReqDto deliveryInfo, String status);
     void withdrawOrder(Long orderId);
 }

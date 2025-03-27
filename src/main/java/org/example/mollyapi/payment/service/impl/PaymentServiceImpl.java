@@ -8,6 +8,7 @@ import org.example.mollyapi.common.exception.error.impl.OrderError;
 import org.example.mollyapi.common.exception.error.impl.PaymentError;
 import org.example.mollyapi.common.exception.error.impl.UserError;
 import org.example.mollyapi.order.entity.Order;
+import org.example.mollyapi.order.event.V2.PaymentEventBlockingQueue;
 import org.example.mollyapi.order.repository.OrderRepository;
 import org.example.mollyapi.payment.dto.request.*;
 import org.example.mollyapi.payment.dto.request.PaymentCancelReqDto;
@@ -51,6 +52,8 @@ public class PaymentServiceImpl implements PaymentService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final ApplicationEventPublisher publisher;
+    private final PaymentEventBlockingQueue paymentEventBlockingQueue;
+    private final PaymentSaveService paymentSaveService;
 
     @Value("${secret.payment-api-key}")
     private String apiKey;
@@ -87,17 +90,66 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     /*
-        결제 요청 실행 (API 호출 및 결제 데이터 저장)
-     */
-    @Transactional
+           결제 요청 실행 (API 호출 및 결제 데이터 저장)
+        */
+    @Retryable(
+            include = {RetryablePaymentException.class},
+//            exclude = {CustomException.class},
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
     public Payment processPayment(Long userId,
+                                  PaymentConfirmReqDto requestDto) {
+        System.out.println("----------------------------------결제 트랜잭션 시작----------------------------------");
+
+        Order order = orderRepository.findByTossOrderId(requestDto.tossOrderId())
+                .orElseThrow(() -> new CustomException(PaymentError.ORDER_NOT_FOUND));
+        // 1. 결제 엔티티 생성
+        Payment payment = createPayment(userId, order.getId(), requestDto.tossOrderId(), requestDto.paymentKey(), requestDto.paymentType(), requestDto.amount());
+
+        // 2. toss payments API 호출
+        ResponseEntity<TossConfirmResDto> response = tossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
+                requestDto.paymentKey(),
+                requestDto.amount()));
+
+        // 2. mock payments API
+//        ResponseEntity<TossConfirmResDto> response = mockTossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
+//                requestDto.paymentKey(),
+//                requestDto.amount()));
+
+        // 3. 응답 검증
+        // pending -> 자동 재시도, fail -> 수동 재시도, approve -> 완료
+        switch (getStatusCodeToString(response)) {
+            case "200" -> payment.approvePayment();
+            case "400" -> {
+                payment.failPayment("결제 실패");
+                paymentSaveService.persistPayment(payment);
+                System.out.println("here");
+                throw new CustomException(OrderError.PAYMENT_RETRY_REQUIRED);
+            }
+            case "500" -> {
+                payment.pendingPayment();
+                paymentSaveService.persistPayment(payment);
+                throw new RetryablePaymentException("서버 내부 오류");
+            }
+        }
+        paymentRepository.save(payment);
+        log.info("processPayment = {}", payment);
+
+        System.out.println("----------------------------------결제 트랜잭션 종료----------------------------------");
+        return payment;
+    }
+
+    @Transactional
+    public Payment processPaymentV2(Long userId,
                                   PaymentConfirmReqDto requestDto) {
 
         ///  승인된 주문인지 확인
         isApprovedPayment(requestDto.tossOrderId());
-
+        Order order = orderRepository.findByTossOrderId(requestDto.tossOrderId())
+                .orElseThrow(() -> new CustomException(PaymentError.ORDER_NOT_FOUND));
         // 1. 결제 엔티티 생성
-        Payment payment = createPayment(userId, requestDto.orderId(), requestDto.tossOrderId(), requestDto.paymentKey(), requestDto.paymentType(), requestDto.amount());
+        Payment payment = createPayment(userId, order.getId(), requestDto.tossOrderId(), requestDto.paymentKey(), requestDto.paymentType(), requestDto.amount());
         paymentRepository.save(payment);
 
 ////         2. toss payments API 호출 (멱등성 헤더 추가하기)
@@ -111,43 +163,45 @@ public class PaymentServiceImpl implements PaymentService {
 
         // 3. 응답 검증
         // pending -> 자동 재시도, fail -> 수동 재시도, approve -> 완료
+        // todo - publish하는 부분 핸들러로 빼기
         switch (getStatusCodeToString(response)) {
             case "200" -> {
-                PaymentApprovedEvent event = new PaymentApprovedEvent(requestDto.tossOrderId(),payment.getPaymentKey());
+                System.out.println("start 200");
+                PaymentApprovedEvent event = new PaymentApprovedEvent(requestDto.tossOrderId(), payment.getPaymentKey());
                 publisher.publishEvent(event);
+//                paymentEventBlockingQueue.publishEvent(event);
 //                payment.successPayment();
             }
             case "400" -> {
+                System.out.println("start 400");
 //                payment.failPayment("결제 실패");
 //                publisher.publishEvent(new PaymentFailedEvent(payment.getId(),PaymentError.PAYMENT_AMOUNT_MISMATCH));
                 PaymentApprovedEvent event = new PaymentApprovedEvent(requestDto.tossOrderId(),payment.getPaymentKey());
                 publisher.publishEvent(event);
+//                paymentEventBlockingQueue.publishEvent(event);
+
             }
             case "500" -> {
+                System.out.println("start 500");
 //                payment.pendingPayment();
-//                publisher.publishEvent(new PaymentFailedEvent(payment.getId(),PaymentError.PAYMENT_GATEWAY_ERROR));
+                publisher.publishEvent(new PaymentFailedEvent(payment.getTossOrderId(), payment.getId(),PaymentError.PAYMENT_GATEWAY_ERROR));
                 PaymentApprovedEvent event = new PaymentApprovedEvent(requestDto.tossOrderId(),payment.getPaymentKey());
-                publisher.publishEvent(event);
+//                paymentEventBlockingQueue.publishEvent(event);
             }
         }
         return payment;
     }
 
     public void approvePayment(String paymentKey) {
-        Payment payment = paymentRepository.findByPaymentKey(paymentKey)
-                .orElseThrow(() -> new CustomException(PaymentError.PAYMENT_NOT_FOUND));
-
+        Payment payment = findPaymentByPaymentKey(paymentKey);
         payment.approvePayment();
-
         paymentRepository.save(payment);
     }
 
     public void failPayment(Long paymentId, PaymentError paymentError) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new CustomException(PaymentError.PAYMENT_NOT_FOUND));
-
         payment.failPayment(paymentError.getMessage());
-
         paymentRepository.save(payment);
     }
 
@@ -157,41 +211,41 @@ public class PaymentServiceImpl implements PaymentService {
             maxAttempts = 3,
             backoff = @Backoff(delay = 1000, multiplier = 2)
     )
-    public Payment processPaymentTest(Long userId,
-                                  PaymentConfirmReqDto requestDto, String status) {
-        System.out.println("----------------------------------결제 트랜잭션 시작----------------------------------");
-        // 1. 결제 엔티티 생성
-        Payment payment = createOrGetPaymentTest(userId, requestDto.orderId(), requestDto.tossOrderId(), requestDto.paymentKey(), requestDto.paymentType(), requestDto.amount());
-
-        //jmeter 테스트 시 정한 상태 값에 따라 동적으로 변경
-        if(status.equals("SUCCESS")) {
-            status = "200";
-        } else if(status.equals("FAIL")){
-            status = "400";
-        } else {
-            status = "500";
-        }
-
-        // 3. 응답 검증
-        // pending -> 자동 재시도, fail -> 수동 재시도, approve -> 완료
-        switch (status) {
-            case "200" -> payment.approvePayment();
-            case "400" -> {
-                log.info("status 400");
-                payment.failPayment("결제 실패");
-                throw new CustomException(OrderError.PAYMENT_RETRY_REQUIRED);
-            }
-            case "500" -> {
-                payment.pendingPayment();
-                throw new RetryablePaymentException("서버 내부 오류");
-            }
-        }
-        paymentRepository.save(payment);
-        log.info("processPayment = {}", payment);
-
-        System.out.println("----------------------------------결제 트랜잭션 종료----------------------------------");
-        return payment;
-    }
+//    public Payment processPaymentTest(Long userId,
+//                                  PaymentConfirmReqDto requestDto, String status) {
+//        System.out.println("----------------------------------결제 트랜잭션 시작----------------------------------");
+//        // 1. 결제 엔티티 생성
+//        Payment payment = createOrGetPaymentTest(userId, requestDto.orderId(), requestDto.tossOrderId(), requestDto.paymentKey(), requestDto.paymentType(), requestDto.amount());
+//
+//        //jmeter 테스트 시 정한 상태 값에 따라 동적으로 변경
+//        if(status.equals("SUCCESS")) {
+//            status = "200";
+//        } else if(status.equals("FAIL")){
+//            status = "400";
+//        } else {
+//            status = "500";
+//        }
+//
+//        // 3. 응답 검증
+//        // pending -> 자동 재시도, fail -> 수동 재시도, approve -> 완료
+//        switch (status) {
+//            case "200" -> payment.approvePayment();
+//            case "400" -> {
+//                log.info("status 400");
+//                payment.failPayment("결제 실패");
+//                throw new CustomException(OrderError.PAYMENT_RETRY_REQUIRED);
+//            }
+//            case "500" -> {
+//                payment.pendingPayment();
+//                throw new RetryablePaymentException("서버 내부 오류");
+//            }
+//        }
+//        paymentRepository.save(payment);
+//        log.info("processPayment = {}", payment);
+//
+//        System.out.println("----------------------------------결제 트랜잭션 종료----------------------------------");
+//        return payment;
+//    }
 
     /*
         결제 요청 생성
@@ -272,27 +326,27 @@ public class PaymentServiceImpl implements PaymentService {
         return ResponseEntity.ok(paymentWebClientUtil.cancelPayment(tossCancelReqDto, apiKey, paymentKey));
     }
 
-    @Transactional
-    public Payment retryPayment(Long userId, String tossOrderId, String paymentKey) {
-//        Payment payment = paymentRepository.findTopLatestPaymentByOrderId(tossOrderId)
-//                .orElseThrow(() -> new CustomException(PaymentError.PAYMENT_NOT_FOUND));
-        Payment payment = findPaymentByPaymentKey(paymentKey);
-
-        // 기존 결제 정보를 기반으로 새로운 결제 요청 생성
-        PaymentConfirmReqDto retryRequest = new PaymentConfirmReqDto(
-                payment.getOrder().getId(),
-                payment.getTossOrderId(),
-                payment.getPaymentKey(),
-                payment.getAmount(),
-                payment.getPaymentType(),
-                0// 포인트는 이미 차감되었으므로 0으로 설정 -> 결제 서비스에서 포인트차감이 아님
-        );
-        processPayment(userId, retryRequest);
-        if (payment.getPaymentStatus() == PaymentStatus.PENDING) {
-            throw new RetryablePaymentException("결제서버 내부 오류. 재시도를 수행할 수 있습니다.");
-        }
-        return payment;
-    }
+//    @Transactional
+//    public Payment retryPayment(Long userId, String tossOrderId, String paymentKey) {
+////        Payment payment = paymentRepository.findTopLatestPaymentByOrderId(tossOrderId)
+////                .orElseThrow(() -> new CustomException(PaymentError.PAYMENT_NOT_FOUND));
+//        Payment payment = findPaymentByPaymentKey(paymentKey);
+//
+//        // 기존 결제 정보를 기반으로 새로운 결제 요청 생성
+//        PaymentConfirmReqDto retryRequest = new PaymentConfirmReqDto(
+//                payment.getOrder().getId(),
+//                payment.getTossOrderId(),
+//                payment.getPaymentKey(),
+//                payment.getAmount(),
+//                payment.getPaymentType(),
+//                0// 포인트는 이미 차감되었으므로 0으로 설정 -> 결제 서비스에서 포인트차감이 아님
+//        );
+//        processPayment(userId, retryRequest);
+//        if (payment.getPaymentStatus() == PaymentStatus.PENDING) {
+//            throw new RetryablePaymentException("결제서버 내부 오류. 재시도를 수행할 수 있습니다.");
+//        }
+//        return payment;
+//    }
 
     /*
         HTTP 응답 검증
