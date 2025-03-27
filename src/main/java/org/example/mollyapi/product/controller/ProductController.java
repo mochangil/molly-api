@@ -128,8 +128,8 @@ public class ProductController {
         List<Long> categoryIdList = getCategoryIdListByCategoryPathString(conditionReqDto.categories());
 
         return ProductFilterCondition.builder()
-                .colorCode(conditionReqDto.colorCode() != null ? Arrays.asList(conditionReqDto.colorCode().split(",")) : null)
-                .size(conditionReqDto.productSize() != null ? Arrays.asList(conditionReqDto.productSize().split(",")) : null)
+                .colorCode(conditionReqDto.colorCode() != null && !conditionReqDto.colorCode().isEmpty() ? Arrays.asList(conditionReqDto.colorCode().split(",")) : null)
+                .size(conditionReqDto.productSize() != null && !conditionReqDto.productSize().isEmpty() ? Arrays.asList(conditionReqDto.productSize().split(",")) : null)
                 .categoryId(categoryIdList)
                 .brandName(conditionReqDto.brandName())
                 .priceGoe(conditionReqDto.priceGoe())
