@@ -47,7 +47,7 @@ public class CartCustomRepositoryImpl implements CartCustomRepository {
     public boolean countByUserUserId(Long userId) {
         return Boolean.TRUE.equals(jpaQueryFactory.select(
                         new CaseBuilder()
-                                .when(cart.count().gt(30L))
+                                .when(cart.count().goe(30L))
                                 .then(Boolean.TRUE)
                                 .otherwise(Boolean.FALSE)
                 ).from(cart)

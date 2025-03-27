@@ -6,6 +6,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import org.example.mollyapi.product.dto.*;
 import org.example.mollyapi.product.enums.OrderBy;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
@@ -64,7 +65,7 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
         ProductItemSubQuery subQuery = new ProductItemSubQuery(
                 condition == null || condition.orderBy() == null ? OrderBy.CREATED_AT : condition.orderBy(),
                 offset,
-                pageable.isPaged() ? (long)pageable.getPageSize() : null);
+                pageable.isPaged() ? (long)pageable.getPageSize()+1 : null);
 
         // 서브쿼리 조건 추가 및 toString
         String subQueryString = subQuery
@@ -98,7 +99,8 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
             content.remove(pageable.getPageSize());
             hasNext = true;
         }
-        return new SliceImpl<>(content, pageable, hasNext);
+        Pageable p = pageable != null && pageable.isPaged() ?  PageRequest.of(offset != null && offset > 0 ? 1 : 0, pageable.getPageSize()) : pageable;
+        return new SliceImpl<>(content, p, hasNext);
     }
 
 }

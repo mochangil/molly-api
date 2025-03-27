@@ -348,7 +348,7 @@ public class OrderServiceImpl implements OrderService{
         PaymentConfirmReqDto paymentConfirmReqDto = new PaymentConfirmReqDto(
                 order.getId(),
                 order.getTossOrderId(),
-                order.getPaymentId(),
+                paymentKey,
                 order.getTotalAmount(),
                 order.getPaymentType(),
                 order.getPointUsage()
