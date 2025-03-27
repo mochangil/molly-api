@@ -17,6 +17,7 @@ import org.example.mollyapi.product.dto.request.ProductBulkItemReqDto;
 import org.example.mollyapi.product.dto.request.ProductBulkReqDto;
 import org.example.mollyapi.product.mapper.ProductItemMapper;
 import org.example.mollyapi.product.mapper.ProductMapper;
+import org.springframework.transaction.annotation.Transactional;
 
 
 @Slf4j
@@ -35,7 +36,6 @@ public class ExcelDataProcessorWorker implements Runnable {
     private final List<ProductBulkItemReqDto> passedProductItem = new ArrayList<>();
 
     private final Long userId;
-    private boolean finished = false;
 
     public ExcelDataProcessorWorker(Long userId,
         ProductItemMapper productItemMapper,
@@ -55,7 +55,6 @@ public class ExcelDataProcessorWorker implements Runnable {
             while (true) {
 
                 List<String> row = queue.poll(1, TimeUnit.SECONDS);
-
                 if (row == null) {
                     log.info(" {} 대기 중 현재 큐가 비어 있음 ", Thread.currentThread());
                     continue;
@@ -97,7 +96,6 @@ public class ExcelDataProcessorWorker implements Runnable {
                     saveProductByMybatis(userId, passedProduct, passedProductItem);
                     log.info(" {} 데이터 {} 개 삽입 완료", Thread.currentThread().getName(),
                         passedProductItem.size());
-//                    checkedFailSaveProduct();
                     passedProduct.clear();
                     passedProductItem.clear();
                 }
@@ -106,10 +104,10 @@ public class ExcelDataProcessorWorker implements Runnable {
             }
 
             if (!passedProductItem.isEmpty()) {
+
+                saveProductByMybatis(userId, passedProduct, passedProductItem);
                 log.info(" {} 데이터 {} 개 삽입 완료", Thread.currentThread().getName(),
                     passedProductItem.size());
-                saveProductByMybatis(userId, passedProduct, passedProductItem);
-
                 passedProduct.clear();
                 passedProductItem.clear();
             }
@@ -118,7 +116,6 @@ public class ExcelDataProcessorWorker implements Runnable {
             log.error("실패!!!!!");
             throw new RuntimeException(e);
         } finally {
-            finished = true;
         }
     }
 
@@ -213,9 +210,7 @@ public class ExcelDataProcessorWorker implements Runnable {
                 excelProductDto.getQuantity(),
                 excelProductDto.getSize()
             );
-
             passedProduct.add(productBulkReqDto);
-
         }
         passedProductItem.add(productBulkItemReqDto);
     }
@@ -227,9 +222,10 @@ public class ExcelDataProcessorWorker implements Runnable {
      * @param passedProduct     유효성이 검사된 상품 데이터
      * @param passedProductItem 유효성이 검사된 상품 옵션 데이터
      */
-    // 실제 DTO 생성 로직으로 대체
-    private void saveProductByMybatis(Long userId, List<ProductBulkReqDto> passedProduct,
+    // 실제 DTO 생성 로직으로 대체l
+    protected void saveProductByMybatis(Long userId, List<ProductBulkReqDto> passedProduct,
         List<ProductBulkItemReqDto> passedProductItem) {
+
         LocalDateTime now = new TimeUtil().getNow();
         productMapper.insertProducts(passedProduct, userId, now);
         productItemMapper.insertProductItems(passedProductItem, now);

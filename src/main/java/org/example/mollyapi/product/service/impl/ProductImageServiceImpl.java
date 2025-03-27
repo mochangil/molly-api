@@ -25,7 +25,7 @@ public class ProductImageServiceImpl {
 
     public ProductImageDto createProductImage(Product product, MultipartFile file, ProductImageType type) {
         if (product == null || file == null || type == null) {
-            throw new IllegalArgumentException("잘 못된 인자로 인해 상품이미지 생성이 실패했습니다.");
+            throw new IllegalArgumentException("잘못된 인자로 인해 상품이미지 생성이 실패했습니다.");
         }
 
         UploadFile uploadFile = imageClient.upload(ImageType.PRODUCT ,file).orElseThrow();
