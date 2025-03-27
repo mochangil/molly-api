@@ -33,7 +33,9 @@ public class ReviewCustomRepositoryImpl implements ReviewCustomRepository {
                         review.content,
                         user.nickname,
                         user.profileImage,
-                        reviewLike.isLike.coalesce(Boolean.FALSE).as("isLike"),
+                        new CaseBuilder()
+                                .when(reviewLike.isNull()).then(Boolean.FALSE)
+                                .otherwise(Boolean.TRUE).as("isLike"),
                         Expressions.stringTemplate("DATE_FORMAT({0}, '%Y-%m-%d')", review.createdAt)
                 )).from(review)
                 .innerJoin(review.user, user)

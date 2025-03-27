@@ -8,20 +8,18 @@ import org.example.mollyapi.review.entity.ReviewLike;
 import org.example.mollyapi.review.repository.ReviewLikeRepository;
 import org.example.mollyapi.review.repository.ReviewRepository;
 import org.example.mollyapi.user.entity.User;
-import org.example.mollyapi.user.repository.UserRepository;
+import org.example.mollyapi.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.example.mollyapi.common.exception.error.impl.ReviewError.NOT_EXIST_REVIEW;
-import static org.example.mollyapi.common.exception.error.impl.UserError.NOT_EXISTS_USER;
 
 @Service
 @RequiredArgsConstructor
 public class ReviewLikeService {
-    private final UserRepository userRep;
+    private final UserService userService;
     private final ReviewRepository reviewRep;
     private final ReviewLikeRepository reviewLikeRep;
-
 
     /**
      * 좋아요 상태 변경
@@ -31,8 +29,7 @@ public class ReviewLikeService {
     @Transactional
     public void changeReviewLike(UpdateReviewLikeReqDto likeDto, Long userId) {
         // 가입된 사용자 여부 체크
-        User user = userRep.findById(userId)
-                .orElseThrow(() -> new CustomException(NOT_EXISTS_USER));
+        User user = userService.findByUser(userId);
 
         // 해당 리뷰 존재 여부 체크
         Review review = reviewRep.findById(likeDto.reviewId())
@@ -44,15 +41,16 @@ public class ReviewLikeService {
         // ReviewLike Entity에 데이터를 추가한 적이 없을 경우
         if(reviewLike == null) {
             // 좋아요 생성
-            reviewLike =  ReviewLike.builder()
-                    .isLike(true)
+            reviewLike = ReviewLike.builder()
                     .user(user)
                     .review(review)
                     .build();
 
             reviewLikeRep.save(reviewLike);
+            review.increaseLikeCount();
         } else { // 이미 좋아요를 눌렀던 적이 있을 경우
-            reviewLike.updateIsLike(likeDto.status());
+            reviewLikeRep.delete(reviewLike);
+            review.decreaseLikeCount();
         }
     }
 }

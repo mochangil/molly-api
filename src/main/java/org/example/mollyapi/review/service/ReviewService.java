@@ -8,7 +8,7 @@ import org.example.mollyapi.order.repository.OrderDetailRepository;
 import org.example.mollyapi.product.dto.UploadFile;
 import org.example.mollyapi.product.entity.Product;
 import org.example.mollyapi.common.enums.ImageType;
-import org.example.mollyapi.product.repository.ProductRepository;
+import org.example.mollyapi.product.service.impl.ProductServiceImpl;
 import org.example.mollyapi.review.dto.request.AddReviewReqDto;
 import org.example.mollyapi.review.dto.response.GetMyReviewResDto;
 import org.example.mollyapi.review.dto.response.GetReviewResDto;
@@ -20,7 +20,7 @@ import org.example.mollyapi.review.repository.ReviewImageRepository;
 import org.example.mollyapi.review.repository.ReviewLikeRepository;
 import org.example.mollyapi.review.repository.ReviewRepository;
 import org.example.mollyapi.user.entity.User;
-import org.example.mollyapi.user.repository.UserRepository;
+import org.example.mollyapi.user.service.UserService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.SliceImpl;
 import org.springframework.stereotype.Service;
@@ -31,16 +31,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.example.mollyapi.common.exception.error.impl.OrderDetailError.NOT_EXIST_ORDERDETIAL;
-import static org.example.mollyapi.common.exception.error.impl.ProductItemError.NOT_EXISTS_PRODUCT;
 import static org.example.mollyapi.common.exception.error.impl.ReviewError.*;
-import static org.example.mollyapi.common.exception.error.impl.UserError.NOT_EXISTS_USER;
 
 @Service
 @RequiredArgsConstructor
 public class ReviewService {
     private final ImageClient imageClient;
-    private final UserRepository userRep;
-    private final ProductRepository productRep;
+    private final UserService userService;
+    private final ProductServiceImpl productServiceImpl;
     private final OrderDetailRepository orderDetailRep;
     private final ReviewRepository reviewRep;
     private final ReviewImageRepository reviewImageRep;
@@ -62,16 +60,14 @@ public class ReviewService {
         String content = addReviewReqDto.content(); //리뷰 내용
 
         // 가입된 사용자 여부 체크
-        User user = userRep.findById(userId)
-                .orElseThrow(() -> new CustomException(NOT_EXISTS_USER));
+        User user = userService.findByUser(userId);
 
         // 주문 상세 조회
         OrderDetail orderDetail = orderDetailRep.findByIdAndOrderUserUserId(orderDetailId, userId)
                 .orElseThrow(() -> new CustomException(NOT_EXIST_ORDERDETIAL));
 
         // 상품 정보 조회
-        Product product = productRep.findById(orderDetail.getProductItem().getProduct().getId())
-                .orElseThrow(() -> new CustomException(NOT_EXISTS_PRODUCT));
+        Product product = productServiceImpl.findByProduct(orderDetail.getProductItem().getProduct().getId());
 
         //리뷰 작성 권한 체크
         Review review = reviewRep.findByIsDeletedAndOrderDetailIdAndUserUserId(true, orderDetailId, userId);
@@ -102,8 +98,7 @@ public class ReviewService {
     @Transactional(readOnly = true)
     public SliceImpl<GetReviewResDto> getReviewList(Pageable pageable, Long productId, Long userId) {
         // 상품 존재 여부 체크
-        boolean existsProduct = productRep.existsById(productId);
-        if(!existsProduct) throw new CustomException(NOT_EXISTS_PRODUCT);
+        productServiceImpl.validProduct(productId);
 
         // 해당 상품의 리뷰 정보 조회
         List<ReviewInfoDto> reviewInfoList = reviewRep.getReviewInfo(pageable, productId, userId);
@@ -139,7 +134,7 @@ public class ReviewService {
     @Transactional(readOnly = true)
     public SliceImpl<GetMyReviewResDto> getMyReviewList(Pageable pageable, Long userId) {
         // 가입된 사용자 여부 체크
-        getUserInfo(userId);
+        userService.validUser(userId);
 
         // 사용자 본인이 작성한 리뷰 정보 조회
         List<MyReviewInfoDto> myReviewInfoList = reviewRep.getMyReviewInfo(pageable, userId);
@@ -182,11 +177,10 @@ public class ReviewService {
         String content = addReviewReqDto.content();
 
         // 가입된 사용자 여부 체크
-        getUserInfo(userId);
+        userService.validUser(userId);
 
         // 변경하려는 리뷰 체크
-        Review review = reviewRep.findByIdAndUserUserIdAndIsDeleted(reviewId, userId,false)
-                .orElseThrow(() -> new CustomException(NOT_ACCESS_REVIEW));
+        Review review = validReview(reviewId, userId, false);
 
         boolean flag = false; //변경 여부 체크 변수
 
@@ -215,11 +209,10 @@ public class ReviewService {
     @Transactional
     public void deleteReview(Long reviewId, Long userId) {
         // 가입된 사용자 여부 체크
-        getUserInfo(userId);
+        userService.validUser(userId);
 
         // 해당하는 리뷰가 있다면
-        Review review = reviewRep.findByIdAndUserUserIdAndIsDeleted(reviewId, userId, false)
-                .orElseThrow(() -> new CustomException(NOT_EXIST_REVIEW));
+        Review review = validReview(reviewId, userId, false);
 
         // 리뷰 삭제 여부 변경
         boolean isUpdate = review.updateIsDeleted(Boolean.TRUE);
@@ -263,11 +256,14 @@ public class ReviewService {
     }
 
     /**
-     * 가입된 사용자 여부 체크
+     * 해당 리뷰가 존재하는 지 체크
+     * @param reviewId 리뷰 PK
      * @param userId 사용자 PK
+     * @param isDeleted 삭제여부
+     * @return Review Entity
      * */
-    public void getUserInfo(Long userId) {
-        boolean existsUser = userRep.existsById(userId);
-        if(!existsUser) throw new CustomException(NOT_EXISTS_USER);
+    public Review validReview(Long reviewId, Long userId, boolean isDeleted) {
+        return reviewRep.findByIdAndUserUserIdAndIsDeleted(reviewId, userId, isDeleted)
+                .orElseThrow(() -> new CustomException(NOT_EXIST_REVIEW));
     }
 }
