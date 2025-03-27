@@ -11,6 +11,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
+import org.example.mollyapi.common.exception.CustomException;
+import org.example.mollyapi.common.exception.error.CustomError;
+import org.example.mollyapi.common.exception.error.impl.ProductError;
+import org.example.mollyapi.common.exception.error.impl.ProductItemError;
 import org.example.mollyapi.common.util.TimeUtil;
 import org.example.mollyapi.product.dto.ExcelProductDto;
 import org.example.mollyapi.product.dto.request.ProductBulkItemReqDto;
@@ -113,9 +117,8 @@ public class ExcelDataProcessorWorker implements Runnable {
             }
 
         } catch (InterruptedException e) {
-            log.error("실패!!!!!");
-            throw new RuntimeException(e);
-        } finally {
+            log.error("Thread : {}, ErrorMessage : {}", Thread.currentThread(), e.getMessage());
+            throw new CustomException(ProductItemError.PROBLEM_REGISTERING_BULK_PRODUCTS);
         }
     }
 
