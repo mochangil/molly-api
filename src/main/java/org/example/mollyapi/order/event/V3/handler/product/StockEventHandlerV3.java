@@ -1,4 +1,4 @@
-package org.example.mollyapi.order.event.handler.product;
+package org.example.mollyapi.order.event.V3.handler.product;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -6,11 +6,12 @@ import org.example.mollyapi.common.exception.CustomException;
 import org.example.mollyapi.common.exception.error.impl.PaymentError;
 import org.example.mollyapi.order.entity.Order;
 import org.example.mollyapi.order.entity.OrderDetail;
-import org.example.mollyapi.order.event.event.order.OrderPreProcessEvent;
+import org.example.mollyapi.order.event.V3.event.order.OrderPreProcessEvent;
 import org.example.mollyapi.order.repository.OrderRepository;
 import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.repository.ProductItemRepository;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,13 +19,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class StockEventHandler {
+public class StockEventHandlerV3 {
 
     private final OrderRepository orderRepository;
     private final ProductItemRepository productItemRepository;
 
     @EventListener
-    @Transactional
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleOrderPreProcessingEvent(OrderPreProcessEvent event) {
 
         Order order = orderRepository.findByTossOrderId(event.tossOrderId())
