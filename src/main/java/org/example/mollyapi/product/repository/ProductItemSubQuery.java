@@ -63,7 +63,7 @@ public class ProductItemSubQuery {
     }
 
     public ProductItemSubQuery appendSize(List<String> sizes) {
-        if (sizes == null) {
+        if (sizes == null || sizes.isEmpty()) {
             return this;
         }
         String sizeString = sizes.stream()
@@ -108,7 +108,7 @@ public class ProductItemSubQuery {
     }
 
     public ProductItemSubQuery appendPriceGoe(Long minPrice) {
-        if (minPrice == null) {
+        if (minPrice == null || minPrice < 0) {
             return this;
         }
 
@@ -117,7 +117,7 @@ public class ProductItemSubQuery {
     }
 
     public ProductItemSubQuery appendPriceLt(Long maxPrice) {
-        if (maxPrice == null) {
+        if (maxPrice == null || maxPrice < 0) {
             return this;
         }
 
@@ -126,7 +126,7 @@ public class ProductItemSubQuery {
     }
 
     public ProductItemSubQuery appendSellerId(Long sellerId) {
-        if (sellerId == null) {
+        if (sellerId == null || sellerId < 0) {
             return this;
         }
 
