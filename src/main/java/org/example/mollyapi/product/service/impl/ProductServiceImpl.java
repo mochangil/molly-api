@@ -3,6 +3,7 @@ package org.example.mollyapi.product.service.impl;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.mollyapi.common.exception.CustomException;
 import org.example.mollyapi.product.dto.ProductDto;
 import org.example.mollyapi.product.dto.ProductItemDto;
 import org.example.mollyapi.product.dto.ProductItemReqDto;
@@ -26,6 +27,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static org.example.mollyapi.common.exception.error.impl.ProductItemError.NOT_EXISTS_PRODUCT;
 
 @Service
 @RequiredArgsConstructor
@@ -161,6 +164,16 @@ public class ProductServiceImpl implements ProductService {
                 itemResDtos,
                 colorDetails
         );
+    }
+
+    public void validProduct(Long productId) {
+        boolean existsProduct = productRepository.existsById(productId);
+        if(!existsProduct) throw new CustomException(NOT_EXISTS_PRODUCT);
+    }
+
+    public Product findByProduct(Long productId) {
+        return productRepository.findById(productId)
+                .orElseThrow(() -> new CustomException(NOT_EXISTS_PRODUCT));
     }
 
 }
