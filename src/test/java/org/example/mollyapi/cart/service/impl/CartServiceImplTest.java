@@ -193,7 +193,7 @@ public class CartServiceImplTest {
     @Test
     void shouldReturnCartDetailWhenCartExist() {
         // given
-        User testUser = createAndSaveUser("망고");
+        User testUser = createAndSaveUser("한라봉");
         Category category = categoryRepository.findById(2L).orElse(null);
         Product testProduct = createAndSaveProduct(category, testUser);
         ProductImage testImage = createAndSaveProductImage(testProduct);
