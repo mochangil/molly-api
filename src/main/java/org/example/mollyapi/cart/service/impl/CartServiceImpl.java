@@ -14,6 +14,7 @@ import org.example.mollyapi.product.dto.response.ColorDetailDto;
 import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.repository.ProductItemRepository;
 import org.example.mollyapi.product.service.ProductService;
+import org.example.mollyapi.product.service.impl.ProductItemServiceImpl;
 import org.example.mollyapi.user.entity.User;
 import org.example.mollyapi.user.service.UserService;
 import org.springframework.stereotype.Service;
@@ -23,7 +24,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.example.mollyapi.common.exception.error.impl.CartError.*;
-import static org.example.mollyapi.common.exception.error.impl.ProductItemError.*;
+import static org.example.mollyapi.common.exception.error.impl.ProductItemError.OVER_QUANTITY;
 
 @Slf4j
 @Service
@@ -31,6 +32,7 @@ import static org.example.mollyapi.common.exception.error.impl.ProductItemError.
 public class CartServiceImpl implements CartService {
     private final ProductService productService;
     private final ProductItemRepository productItemRep;
+    private final ProductItemServiceImpl productItemService;
     private final CartRepository cartRep;
     private final UserService userService;
 
@@ -46,10 +48,10 @@ public class CartServiceImpl implements CartService {
         User user = userService.findByUser(userId);
 
         // 2. 상품 존재 여부 체크
-        ProductItem item = getProductItemInfo(addCartReqDto.itemId());
+        ProductItem item = productItemService.findByProductItem(addCartReqDto.itemId());
 
         // 3. 상품의 재고가 남아 있는 지 체크
-        checkStock(item.getQuantity(), addCartReqDto.quantity());
+        validStock(item, addCartReqDto.quantity());
 
         // 4. 장바구니에 동일한 상품이 담겨 있는 지 체크
         Cart cart = cartRep.findByProductItemIdAndUserUserId(addCartReqDto.itemId(), userId);
@@ -60,7 +62,7 @@ public class CartServiceImpl implements CartService {
         } else {
             // 6. 초과 수량을 장바구니에 담는 지 체크
             long totalQuantity = cart.getQuantity() + addCartReqDto.quantity(); //기존에 담아둔 수량 + 추가 하려는 수량
-            checkStock(item.getQuantity(), totalQuantity);
+            validStock(item, totalQuantity);
 
             // 7. 수량 업데이트
             cart.updateQuantity(totalQuantity);
@@ -133,16 +135,14 @@ public class CartServiceImpl implements CartService {
         Cart cart = getCartInfo(updateCartReqDto.cartId(), userId);
 
         // 3. 변경하려는 아이템 여부 체크
-        ProductItem item = getProductItemInfo(updateCartReqDto.itemId());
+        ProductItem item = productItemService.findByProductItem(updateCartReqDto.itemId());
 
         // 4. 해당 상품이 장바구니에 담겨있는 지 체크
-        if(!cart.getProductItem().getId().equals(item.getId())) {
-            boolean existCart = cartRep.existsByProductItemIdAndUserUserId(updateCartReqDto.itemId(), userId);
-            if(existCart) throw new CustomException(EXIST_CART);
-        }
+        if(!cart.getProductItem().getId().equals(item.getId()))
+            validCart(updateCartReqDto.cartId(), userId);
 
         // 5. 재고 검증
-        checkStock(item.getQuantity(), updateCartReqDto.quantity());
+        validStock(item, updateCartReqDto.quantity());
 
         // 6. 변경 사항 반영
         cart.updateCart(item, updateCartReqDto.quantity());
@@ -166,16 +166,6 @@ public class CartServiceImpl implements CartService {
     }
 
     /**
-     * 상품 아이템 정보 조회
-     * @param itemId 상품 아이템 Pk
-     * @return ProductItem entity
-     * */
-    public ProductItem getProductItemInfo(Long itemId) {
-        return productItemRep.findById(itemId)
-                .orElseThrow(() -> new CustomException(NOT_EXISTS_ITEM));
-    }
-
-    /**
      * 해당 장바구니 정보 조회
      * @param cartId 장바구니 PK
      * @param userId 사용자 PK
@@ -187,12 +177,21 @@ public class CartServiceImpl implements CartService {
     }
 
     /**
-     * 재고 수량을 초과 여부 계산
-     * @param itemQuantity 상품 현재 수량
-     * @param changeQuantity 변경할 수량
+     * 변경하려는 상품이 장바구니에 담겨있는 지 체크
+     * @param itemId 상품 아이템 PK
+     * @param userId 사용자 PK
      * */
-    public void checkStock(Long itemQuantity, Long changeQuantity) {
-        if(itemQuantity == 0 || itemQuantity < changeQuantity)
-            throw new CustomException(OVER_QUANTITY);
+    public void validCart(Long itemId, Long userId) {
+        boolean existCart = cartRep.existsByProductItemIdAndUserUserId(itemId, userId);
+        if(existCart) throw new CustomException(EXIST_CART);
+    }
+
+    /**
+     * 상품 아이템 재고 조회
+     * @param item 상품 아이템 entity
+     * @param quantity 변경할 수량
+     * */
+    public void validStock(ProductItem item, Long quantity) {
+        if(!item.validStock(quantity)) throw new CustomException(OVER_QUANTITY);
     }
 }
