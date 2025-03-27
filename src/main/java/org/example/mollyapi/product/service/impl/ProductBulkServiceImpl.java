@@ -16,6 +16,7 @@ import org.example.mollyapi.product.mapper.ProductItemMapper;
 import org.example.mollyapi.product.mapper.ProductMapper;
 import org.example.mollyapi.product.service.ProductBulkService;
 import org.example.mollyapi.product.worker.ExcelDataProcessorWorker;
+import org.example.mollyapi.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,13 +38,16 @@ public class ProductBulkServiceImpl implements ProductBulkService {
 
     private final ProductMapper productMapper;
     private final ProductItemMapper productItemMapper;
+    private final UserService userService;
 
 
     public BlockingQueue<Map<String, String>> saveChunkOfBulkProducts(MultipartFile file,
         Long userId) {
 
+        userService.validUser(userId);
+
         BlockingQueue<Map<String, String>> errorQueue = new LinkedBlockingQueue<>();
-        BlockingQueue<List<String>> blockingQueue = new LinkedBlockingQueue<>();
+        BlockingQueue<List<String>> rowDataQueue = new LinkedBlockingQueue<>();
         ExecutorService executorService = Executors.newFixedThreadPool(4);
 
         try (OPCPackage pkg = OPCPackage.open(file.getInputStream())) {
@@ -53,7 +57,7 @@ public class ProductBulkServiceImpl implements ProductBulkService {
             ReadOnlySharedStringsTable sharedStringsTable = new ReadOnlySharedStringsTable(pkg);
 
             // 커스텀 핸들러 생성 - 여기서 invalidProducts, userId, 배치 저장 로직을 처리함
-            ExcelHandler handler = new ExcelHandler(blockingQueue, sharedStringsTable);
+            ExcelHandler handler = new ExcelHandler(rowDataQueue, sharedStringsTable);
 
             parser.setContentHandler(handler);
             Iterator<InputStream> sheets = reader.getSheetsData();
@@ -63,7 +67,7 @@ public class ProductBulkServiceImpl implements ProductBulkService {
                     userId,
                     productItemMapper,
                     productMapper,
-                    blockingQueue,
+                    rowDataQueue,
                     errorQueue
                 ));
             }
@@ -75,7 +79,7 @@ public class ProductBulkServiceImpl implements ProductBulkService {
 
             List<List<Long>> productItemIds = handler.getProductItemIds();
 
-            if (endThread(blockingQueue, executorService)) {
+            if (endThread(rowDataQueue, executorService)) {
                 checkedFailSaveProduct(productItemIds, errorQueue);
             }
 
@@ -84,26 +88,33 @@ public class ProductBulkServiceImpl implements ProductBulkService {
             throw new CustomException(PROBLEM_REGISTERING_BULK_PRODUCTS);
 
         } finally {
-            endThread(blockingQueue, executorService);
+            endThread(rowDataQueue, executorService);
         }
 
         return errorQueue;
     }
 
-    private static boolean endThread(BlockingQueue<List<String>> blockingQueue,
+    private static boolean endThread(BlockingQueue<List<String>> rowDataQueue,
         ExecutorService executorService
     ) {
         try {
             for (int i = 0; i < 4; i++) {
-                blockingQueue.put(new ArrayList<>());
+                rowDataQueue.put(Collections.emptyList());
             }
-            executorService.shutdown();// 새 작업은 막음
-            if (!executorService.awaitTermination(6000, TimeUnit.SECONDS)) {
-                log.info("[Worker] 끝났다요~!");
+
+            executorService.shutdown();
+            boolean terminated = executorService.awaitTermination(60, TimeUnit.SECONDS);
+
+            if (!terminated || !rowDataQueue.isEmpty()) {
+                log.warn("[WARNING] 처리되지 않은 데이터가 큐에 남아 있습니다: {}건", rowDataQueue.size());
+
             }
+
             return true;
         } catch (InterruptedException e) {
             log.error("Error Message : {}", e.getMessage());
+            //혹시 모를 에외사항의 대한 BlockingQueue 삭제
+            rowDataQueue.clear();
             throw new CustomException(PROBLEM_REGISTERING_BULK_PRODUCTS);
         }
 
