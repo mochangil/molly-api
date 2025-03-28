@@ -6,6 +6,7 @@ import org.example.mollyapi.common.exception.error.impl.PaymentError;
 import org.example.mollyapi.delivery.dto.DeliveryReqDto;
 import org.example.mollyapi.order.event.V2.OrderEventBlockingQueue;
 import org.example.mollyapi.order.entity.Order;
+import org.example.mollyapi.order.event.V2.PaymentEventBlockingQueue;
 import org.example.mollyapi.order.event.V2.event.order.OrderInitiateEvent;
 import org.example.mollyapi.order.event.V2.event.order.OrderPostProcessEvent;
 import org.example.mollyapi.order.event.V2.event.order.OrderPreProcessEvent;
@@ -23,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +34,7 @@ public class OrderProcessServiceV2 {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final OrderEventBlockingQueue orderEventBlockingQueue;
+    private final PaymentEventBlockingQueue paymentEventBlockingQueue;
     private final PaymentEventHandler paymentEventHandler;
 
     // 후보 1
@@ -42,10 +46,7 @@ public class OrderProcessServiceV2 {
         orderEventBlockingQueue.publishEvent(new OrderInitiateEvent(tossOrderId));
 
         //payment 결과 future 등록
-        CompletableFuture<Boolean> paymentFuture = paymentEventHandler.registerPaymentFuture(tossOrderId);
-
-        //
-
+        CompletableFuture<PaymentResDto> paymentFuture = paymentEventHandler.registerPaymentFuture(tossOrderId);
         //stock, point
         orderEventBlockingQueue.publishEvent(new OrderPreProcessEvent(userId, tossOrderId, point));
 
@@ -56,12 +57,18 @@ public class OrderProcessServiceV2 {
 
         try {
             // 5. paymentFuture가 완료될 때까지 블로킹으로 대기합니다.
-            boolean approved = paymentFuture.get();
+            PaymentResDto paymentResDto = paymentFuture.get(10, TimeUnit.SECONDS);
+            return paymentResDto;
+        } catch (TimeoutException e){
+            System.out.println("결제 처리 시간이 초과되었습니다.");
+            // paymentFailed 보상트랜잭션
+            throw new CustomException(PaymentError.PAYMENT_FAILED);
         } catch (InterruptedException | ExecutionException e) {
             // 예외 처리: 필요에 따라 재시도 로직이나 로깅 처리
+            // PaymentFailed 보상트랜잭션
             e.printStackTrace();
+            throw new CustomException(PaymentError.PAYMENT_FAILED);
         }
-        return null;
     }
 
     private PaymentConfirmReqDto getPaymentConfirmReqDto(String tossOrderId, String paymentKey, Long amount, String paymentType) {

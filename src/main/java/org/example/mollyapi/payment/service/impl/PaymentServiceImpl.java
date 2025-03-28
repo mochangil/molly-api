@@ -15,6 +15,7 @@ import org.example.mollyapi.payment.dto.request.PaymentCancelReqDto;
 import org.example.mollyapi.payment.dto.request.TossCancelReqDto;
 import org.example.mollyapi.payment.dto.request.TossConfirmReqDto;
 import org.example.mollyapi.payment.dto.response.PaymentInfoResDto;
+import org.example.mollyapi.payment.dto.response.PaymentResDto;
 import org.example.mollyapi.payment.dto.response.TossCancelResDto;
 import org.example.mollyapi.payment.dto.response.TossConfirmResDto;
 import org.example.mollyapi.payment.entity.Payment;
@@ -83,10 +84,11 @@ public class PaymentServiceImpl implements PaymentService {
                 .collect(Collectors.toList());
     }
 
-    public void isApprovedPayment(String tossOrderID) {
+    public boolean isApprovedPayment(String tossOrderID) {
         if (paymentRepository.existsByTossOrderIdAndPaymentStatus(tossOrderID, PaymentStatus.APPROVED)){
-            throw new CustomException(PaymentError.PAYMENT_ALREADY_PROCESSED);
+            return false;
         }
+        return true;
     }
 
     /*
@@ -145,7 +147,9 @@ public class PaymentServiceImpl implements PaymentService {
                                   PaymentConfirmReqDto requestDto) {
 
         ///  승인된 주문인지 확인
-        isApprovedPayment(requestDto.tossOrderId());
+        if (!isApprovedPayment(requestDto.tossOrderId())){
+            throw new CustomException(PaymentError.PAYMENT_ALREADY_PROCESSED);
+        };
         Order order = orderRepository.findByTossOrderId(requestDto.tossOrderId())
                 .orElseThrow(() -> new CustomException(PaymentError.ORDER_NOT_FOUND));
         // 1. 결제 엔티티 생성
@@ -153,13 +157,13 @@ public class PaymentServiceImpl implements PaymentService {
         paymentRepository.save(payment);
 
 ////         2. toss payments API 호출 (멱등성 헤더 추가하기)
-//        ResponseEntity<TossConfirmResDto> response = tossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
-//                requestDto.paymentKey(),
-//                requestDto.amount()));
-        // 2. mock toss payment API
-        ResponseEntity<TossConfirmResDto> response = mockTossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
+        ResponseEntity<TossConfirmResDto> response = tossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
                 requestDto.paymentKey(),
                 requestDto.amount()));
+        // 2. mock toss payment API
+//        ResponseEntity<TossConfirmResDto> response = mockTossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
+//                requestDto.paymentKey(),
+//                requestDto.amount()));
 
         // 3. 응답 검증
         // pending -> 자동 재시도, fail -> 수동 재시도, approve -> 완료
@@ -167,7 +171,14 @@ public class PaymentServiceImpl implements PaymentService {
         switch (getStatusCodeToString(response)) {
             case "200" -> {
                 System.out.println("start 200");
-                PaymentApprovedEvent event = new PaymentApprovedEvent(requestDto.tossOrderId(), payment.getPaymentKey());
+                PaymentApprovedEvent event = new PaymentApprovedEvent(
+                        payment.getId(),
+                        requestDto.paymentType(),
+                        requestDto.amount(),
+                        "APPROVED",
+                        requestDto.tossOrderId(),
+                        payment.getPaymentKey()
+                );
                 publisher.publishEvent(event);
 //                paymentEventBlockingQueue.publishEvent(event);
 //                payment.successPayment();
@@ -176,7 +187,14 @@ public class PaymentServiceImpl implements PaymentService {
                 System.out.println("start 400");
 //                payment.failPayment("결제 실패");
 //                publisher.publishEvent(new PaymentFailedEvent(payment.getId(),PaymentError.PAYMENT_AMOUNT_MISMATCH));
-                PaymentApprovedEvent event = new PaymentApprovedEvent(requestDto.tossOrderId(),payment.getPaymentKey());
+                PaymentApprovedEvent event = new PaymentApprovedEvent(
+                        payment.getId(),
+                        requestDto.paymentType(),
+                        requestDto.amount(),
+                        "APPROVED",
+                        requestDto.tossOrderId(),
+                        payment.getPaymentKey()
+                );
                 publisher.publishEvent(event);
 //                paymentEventBlockingQueue.publishEvent(event);
 
@@ -184,8 +202,14 @@ public class PaymentServiceImpl implements PaymentService {
             case "500" -> {
                 System.out.println("start 500");
 //                payment.pendingPayment();
-                publisher.publishEvent(new PaymentFailedEvent(payment.getTossOrderId(), payment.getId(),PaymentError.PAYMENT_GATEWAY_ERROR));
-                PaymentApprovedEvent event = new PaymentApprovedEvent(requestDto.tossOrderId(),payment.getPaymentKey());
+                publisher.publishEvent(new PaymentFailedEvent(
+                        payment.getId(),
+                        requestDto.paymentType(),
+                        requestDto.amount(),
+                        "APPROVED",
+                        requestDto.tossOrderId(),
+                        payment.getPaymentKey(),
+                        PaymentError.PAYMENT_GATEWAY_ERROR));
 //                paymentEventBlockingQueue.publishEvent(event);
             }
         }

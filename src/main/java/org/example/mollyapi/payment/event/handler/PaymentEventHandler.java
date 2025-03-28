@@ -3,6 +3,7 @@ package org.example.mollyapi.payment.event.handler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.mollyapi.order.event.V2.event.order.OrderProcessEvent;
+import org.example.mollyapi.payment.dto.response.PaymentResDto;
 import org.example.mollyapi.payment.event.event.PaymentApprovedEvent;
 import org.example.mollyapi.payment.event.event.PaymentFailedEvent;
 import org.example.mollyapi.payment.service.impl.PaymentServiceImpl;
@@ -22,10 +23,10 @@ import java.util.concurrent.ConcurrentMap;
 @Slf4j
 public class PaymentEventHandler {
     private final PaymentServiceImpl paymentService;
-    private final ConcurrentMap<String, CompletableFuture<Boolean>> paymentResultMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, CompletableFuture<PaymentResDto>> paymentResultMap = new ConcurrentHashMap<>();
 
-    public CompletableFuture<Boolean> registerPaymentFuture(String tossOrderId) {
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
+    public CompletableFuture<PaymentResDto> registerPaymentFuture(String tossOrderId) {
+        CompletableFuture<PaymentResDto> future = new CompletableFuture<>();
         paymentResultMap.put(tossOrderId, future);
         return future;
     }
@@ -41,19 +42,37 @@ public class PaymentEventHandler {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async("paymentExecutor")
     public void handlePaymentApprovedEvent(PaymentApprovedEvent event) {
-        CompletableFuture<Boolean> future = paymentResultMap.remove(event.tossOrderId());
+        CompletableFuture<PaymentResDto> future = paymentResultMap.remove(event.tossOrderId());
         if (future != null) {
-            future.complete(true);
+            PaymentResDto paymentResDto = new PaymentResDto(
+                    event.paymentId(),
+                    event.paymentType(),
+                    event.amount(),
+                    event.paymentStatus(),
+                    event.tossOrderId(),
+                    event.tossPaymentKey()
+            );
+            System.out.println(paymentResDto.paymentStatus());
+            future.complete(paymentResDto);
+
         }
-        paymentService.approvePayment(event.paymentKey());
+        paymentService.approvePayment(event.tossPaymentKey());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async("paymentExecutor")
     public void handlePaymentFailedEvent(PaymentFailedEvent event) {
-        CompletableFuture<Boolean> future = paymentResultMap.remove(event.tossOrderId());
+        CompletableFuture<PaymentResDto> future = paymentResultMap.remove(event.tossOrderId());
         if (future != null) {
-            future.complete(false);
+            PaymentResDto paymentResDto = new PaymentResDto(
+                    event.paymentId(),
+                    event.paymentType(),
+                    event.amount(),
+                    event.paymentStatus(),
+                    event.tossOrderId(),
+                    event.tossPaymentKey()
+            );
+            future.complete(paymentResDto);
         }
         paymentService.failPayment(event.paymentId(),event.error());
     }

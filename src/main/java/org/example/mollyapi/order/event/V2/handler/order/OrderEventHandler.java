@@ -1,6 +1,7 @@
 package org.example.mollyapi.order.event.V2.handler.order;
 
 import lombok.RequiredArgsConstructor;
+import org.example.mollyapi.common.exception.CustomException;
 import org.example.mollyapi.order.event.V2.event.order.OrderInitiateEvent;
 import org.example.mollyapi.order.service.OrderServiceImplV0;
 import org.example.mollyapi.payment.event.event.PaymentApprovedEvent;
@@ -32,7 +33,7 @@ public class OrderEventHandler {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async("paymentExecutor")
     public void handlePaymentApprovedEvent(PaymentApprovedEvent event) {
-        orderServiceImplV0.successOrder(event.tossOrderId(),event.paymentKey());
+        orderServiceImplV0.successOrder(event.tossOrderId(),event.tossPaymentKey());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

@@ -347,11 +347,11 @@ public class OrderServiceImpl implements OrderService{
         /// 10. PaymentRequestDto 생성 후 PaymentService 호출
         PaymentConfirmReqDto paymentConfirmReqDto = new PaymentConfirmReqDto(
 //                order.getId(),
-                order.getTossOrderId(),
+                tossOrderId,
                 paymentKey,
-                order.getTotalAmount(),
-                order.getPaymentType(),
-                order.getPointUsage()
+                amount,
+                paymentType,
+                pointUsage
         );
 
         /// 11. 결제 진행
