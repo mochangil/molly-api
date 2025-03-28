@@ -53,8 +53,8 @@ public class ProductReadServiceImpl implements ProductReadService {
         Slice<ProductAndThumbnailDto> page = productRepository.findByCondition(condition, pageable, offsetId);
         long endTime = System.currentTimeMillis(); // 종료 시간 기록
         long elapsedTime = endTime - startTime;
-        if (elapsedTime > 2000) {
-            log.debug("Execution time: " + (endTime - startTime) + " ms");
+        if (elapsedTime > 1000) {
+            log.info("Execution time: " + (endTime - startTime) + " ms");
         }
         return page.map(this::convertToProductResDto);
     }
