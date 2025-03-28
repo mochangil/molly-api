@@ -175,7 +175,7 @@ public class PaymentServiceImpl implements PaymentService {
                         payment.getId(),
                         requestDto.paymentType(),
                         requestDto.amount(),
-                        "APPROVED",
+                        "결제승인",
                         requestDto.tossOrderId(),
                         payment.getPaymentKey()
                 );
@@ -187,13 +187,14 @@ public class PaymentServiceImpl implements PaymentService {
                 System.out.println("start 400");
 //                payment.failPayment("결제 실패");
 //                publisher.publishEvent(new PaymentFailedEvent(payment.getId(),PaymentError.PAYMENT_AMOUNT_MISMATCH));
-                PaymentApprovedEvent event = new PaymentApprovedEvent(
+                PaymentFailedEvent event = new PaymentFailedEvent(
                         payment.getId(),
                         requestDto.paymentType(),
                         requestDto.amount(),
-                        "APPROVED",
+                        "결제실패",
                         requestDto.tossOrderId(),
-                        payment.getPaymentKey()
+                        payment.getPaymentKey(),
+                        PaymentError.PAYMENT_FAILED
                 );
                 publisher.publishEvent(event);
 //                paymentEventBlockingQueue.publishEvent(event);

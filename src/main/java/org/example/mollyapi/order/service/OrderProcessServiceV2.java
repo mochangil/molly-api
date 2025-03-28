@@ -2,6 +2,7 @@ package org.example.mollyapi.order.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.mollyapi.common.exception.CustomException;
+import org.example.mollyapi.common.exception.error.impl.OrderError;
 import org.example.mollyapi.common.exception.error.impl.PaymentError;
 import org.example.mollyapi.delivery.dto.DeliveryReqDto;
 import org.example.mollyapi.order.event.V2.OrderEventBlockingQueue;
@@ -58,7 +59,11 @@ public class OrderProcessServiceV2 {
         try {
             // 5. paymentFuture가 완료될 때까지 블로킹으로 대기합니다.
             PaymentResDto paymentResDto = paymentFuture.get(10, TimeUnit.SECONDS);
-            return paymentResDto;
+            if(paymentResDto.paymentStatus().equals("결제승인")){
+                return paymentResDto;
+            }else {
+                throw new CustomException(OrderError.PAYMENT_RETRY_REQUIRED);
+            }
         } catch (TimeoutException e){
             System.out.println("결제 처리 시간이 초과되었습니다.");
             // paymentFailed 보상트랜잭션
