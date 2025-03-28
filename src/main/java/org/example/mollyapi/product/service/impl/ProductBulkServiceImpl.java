@@ -18,7 +18,6 @@ import org.example.mollyapi.product.service.ProductBulkService;
 import org.example.mollyapi.product.worker.ExcelDataProcessorWorker;
 import org.example.mollyapi.user.service.UserService;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
@@ -33,7 +32,6 @@ import static org.xml.sax.helpers.XMLReaderFactory.*;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class ProductBulkServiceImpl implements ProductBulkService {
 
     private final ProductMapper productMapper;
@@ -86,7 +84,6 @@ public class ProductBulkServiceImpl implements ProductBulkService {
         } catch (Exception e) {
             log.error("service error Message : {}", e.getMessage());
             throw new CustomException(PROBLEM_REGISTERING_BULK_PRODUCTS);
-
         } finally {
             endThread(rowDataQueue, executorService);
         }
@@ -103,13 +100,11 @@ public class ProductBulkServiceImpl implements ProductBulkService {
             }
 
             executorService.shutdown();
-            boolean terminated = executorService.awaitTermination(60, TimeUnit.SECONDS);
 
-            if (!terminated || !rowDataQueue.isEmpty()) {
-                log.warn("[WARNING] 처리되지 않은 데이터가 큐에 남아 있습니다: {}건", rowDataQueue.size());
-
+            if (!executorService.awaitTermination(600, TimeUnit.SECONDS)) {
+                log.info("아직 쓰레드가 끝나지 않았습니다.");
+                executorService.shutdownNow();
             }
-
             return true;
         } catch (InterruptedException e) {
             log.error("Error Message : {}", e.getMessage());
@@ -117,25 +112,29 @@ public class ProductBulkServiceImpl implements ProductBulkService {
             rowDataQueue.clear();
             throw new CustomException(PROBLEM_REGISTERING_BULK_PRODUCTS);
         }
-
     }
 
     private void checkedFailSaveProduct(List<List<Long>> productItemIds,
         BlockingQueue<Map<String, String>> errorQueue) {
         long start = System.nanoTime();
 
-        Set<Long> savedProductItemIds = productItemMapper.getProductsByIdRangeSet(
-            productItemIds.get(0).get(0),
-            productItemIds.get(productItemIds.size() - 1).get(0));
+        Long startId = productItemIds.get(0).get(0);
+        Long endId = productItemIds.get(productItemIds.size() - 1).get(0);
 
-        productItemIds.stream()
-            .filter(id->!savedProductItemIds.contains(id.get(0)))
-            .forEach(id->{
+        Set<Long> savedProductItemIds = productItemMapper.findProductIdsByIds(
+            startId, endId);
+
+        log.info("savedProductItemIds size : {}", savedProductItemIds.size());
+        productItemIds.parallelStream()
+            .filter(id -> !savedProductItemIds.contains(id.get(0)))
+            .forEach(id -> {
+
                 Map<String, String> errorMap = new HashMap<>();
                 errorMap.put("행", String.valueOf(id.get(1)));
                 errorQueue.add(errorMap);
             });
+
         long end = System.nanoTime();
-        log.info("메소드 걸린 시간 {} ms ", (end - start)/ 1_000_000.0);
+        log.info("메소드 걸린 시간 {} ms ", (end - start) / 1_000_000.0);
     }
 }
