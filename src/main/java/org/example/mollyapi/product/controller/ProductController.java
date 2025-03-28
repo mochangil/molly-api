@@ -14,7 +14,8 @@ import org.example.mollyapi.common.exception.CustomErrorResponse;
 import org.example.mollyapi.product.dto.BrandSummaryDto;
 import org.example.mollyapi.product.dto.ProductFilterCondition;
 import org.example.mollyapi.product.dto.request.ProductFilterConditionReqDto;
-import org.example.mollyapi.product.dto.request.ProductReqDto;
+import org.example.mollyapi.product.dto.request.ProductRegisterReqDto;
+import org.example.mollyapi.product.dto.request.ProductUpdateReqDto;
 import org.example.mollyapi.product.dto.response.ListResDto;
 import org.example.mollyapi.product.dto.response.PageResDto;
 import org.example.mollyapi.product.dto.response.ProductResDto;
@@ -63,13 +64,15 @@ public class ProductController {
     })
     public ResponseEntity<ListResDto> getAllProducts(
             @ParameterObject ProductFilterConditionReqDto conditionReqDto,
-            @RequestParam int page,
+//            @RequestParam int page,
+            @RequestParam Long offsetId,
             @RequestParam int size
     ) {
-        PageRequest pageRequest = PageRequest.of(page, size);
+        PageRequest pageRequest = PageRequest.of(0, size);
 
         ProductFilterCondition condition = convertToProductFilterCondition(conditionReqDto, null);
-        Slice<ProductResDto> products = productReadService.getAllProducts(condition, pageRequest);
+        Slice<ProductResDto> products = productReadService.getAllProducts(condition, pageRequest, offsetId);
+        Long lastElementId = !products.getContent().isEmpty() ? products.getContent().get(products.getContent().size() - 1).id() : null;
 
         if (products.getContent().isEmpty()) {
             return ResponseEntity.noContent().build();
@@ -77,7 +80,7 @@ public class ProductController {
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new ListResDto(PageResDto.of(products), products.getContent()));
+                .body(new ListResDto(PageResDto.of(products, lastElementId), products.getContent()));
     }
 
     @Auth
@@ -98,14 +101,16 @@ public class ProductController {
     public ResponseEntity<ListResDto> getAllProductsBySeller(
             HttpServletRequest request,
             @ParameterObject ProductFilterConditionReqDto conditionReqDto,
-            @RequestParam int page,
+//            @RequestParam int page,
+            @RequestParam Long offsetId,
             @RequestParam int size
     ) {
-        PageRequest pageRequest = PageRequest.of(page, size);
+        PageRequest pageRequest = PageRequest.of(0, size);
         Long userId = (Long) request.getAttribute("userId");
 
         ProductFilterCondition condition = convertToProductFilterCondition(conditionReqDto, userId);
-        Slice<ProductResDto> products = productReadService.getAllProducts(condition, pageRequest);
+        Slice<ProductResDto> products = productReadService.getAllProducts(condition, pageRequest, offsetId);
+        Long lastElementId = products.getContent().get(products.getContent().size() - 1).id();
 
         if (products.getContent().isEmpty()) {
             return ResponseEntity.noContent().build();
@@ -113,7 +118,7 @@ public class ProductController {
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new ListResDto(PageResDto.of(products), products.getContent()));
+                .body(new ListResDto(PageResDto.of(products, lastElementId), products.getContent()));
     }
 
     private ProductFilterCondition convertToProductFilterCondition(
@@ -123,8 +128,8 @@ public class ProductController {
         List<Long> categoryIdList = getCategoryIdListByCategoryPathString(conditionReqDto.categories());
 
         return ProductFilterCondition.builder()
-                .colorCode(conditionReqDto.colorCode() != null ? Arrays.asList(conditionReqDto.colorCode().split(",")) : null)
-                .size(conditionReqDto.productSize() != null ? Arrays.asList(conditionReqDto.productSize().split(",")) : null)
+                .colorCode(conditionReqDto.colorCode() != null && !conditionReqDto.colorCode().isEmpty() ? Arrays.asList(conditionReqDto.colorCode().split(",")) : null)
+                .size(conditionReqDto.productSize() != null && !conditionReqDto.productSize().isEmpty() ? Arrays.asList(conditionReqDto.productSize().split(",")) : null)
                 .categoryId(categoryIdList)
                 .brandName(conditionReqDto.brandName())
                 .priceGoe(conditionReqDto.priceGoe())
@@ -183,7 +188,8 @@ public class ProductController {
                         new PageResDto(
                                 (long) brands.getContent().size(),
                                 brands.hasNext(),
-                                brands.isFirst(),brands.isLast()
+                                brands.isFirst(),brands.isLast(),
+                                null
                         ),
                         brands.getContent()
                 ));
@@ -201,7 +207,7 @@ public class ProductController {
     })
     public ResponseEntity<ProductResDto> registerProduct(
             HttpServletRequest request,
-            @Valid @RequestPart("product") ProductReqDto productReqDto,
+            @Valid @RequestPart("product") ProductRegisterReqDto productRegisterReqDto,
             @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
             @RequestPart(value = "productImages", required = false) List<MultipartFile> productImages,
             @RequestPart(value = "productDescriptionImages", required = false) List<MultipartFile> productDescriptionImages
@@ -209,8 +215,8 @@ public class ProductController {
         Long userId = (Long) request.getAttribute("userId");
         ProductResDto productResDto = productService.registerProduct(
                 userId,
-                ProductReqDto.from(productReqDto),
-                productReqDto.items(),
+                ProductRegisterReqDto.from(productRegisterReqDto),
+                productRegisterReqDto.items(),
                 thumbnail, productImages, productDescriptionImages);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
@@ -230,13 +236,13 @@ public class ProductController {
     public ResponseEntity<ProductResDto> updateProduct(
             HttpServletRequest request,
             @PathVariable Long productId,
-            @RequestPart("product") ProductReqDto productRegisterReqDto) {
+            @RequestPart("product") ProductUpdateReqDto productUpdateReqDto) {
         Long userId = (Long) request.getAttribute("userId");
         ProductResDto productResDto = productService.updateProduct(
                 userId,
                 productId,
-                ProductReqDto.from(productRegisterReqDto),
-                productRegisterReqDto.items());
+                ProductUpdateReqDto.from(productUpdateReqDto),
+                productUpdateReqDto.items());
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(productResDto);

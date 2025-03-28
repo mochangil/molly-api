@@ -1,4 +1,4 @@
-package org.example.mollyapi.product.service;
+package org.example.mollyapi.product.service.impl;
 
 import org.example.mollyapi.product.dto.BrandSummaryDto;
 import org.example.mollyapi.product.repository.ProductRepository;
@@ -9,9 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
 

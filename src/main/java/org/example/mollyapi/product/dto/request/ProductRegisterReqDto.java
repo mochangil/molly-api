@@ -4,12 +4,11 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.example.mollyapi.product.dto.ProductDto;
-import org.example.mollyapi.product.dto.ProductItemDto;
+import org.example.mollyapi.product.dto.ProductItemReqDto;
 
 import java.util.List;
 
-public record ProductReqDto(
-//        Long id,
+public record ProductRegisterReqDto(
         @NotNull(message = "카테고리는 필수입니다")
             List<@NotBlank(message = "카테고리명은 공백일 수 없습니다") String> categories,
 
@@ -26,17 +25,16 @@ public record ProductReqDto(
         @NotNull String description,
 
         @NotNull(message = "상품은 한 개 이상 등록해야합니다")
-            List<ProductItemDto> items // [[ 색상, 색상코드, 사이즈 ], ...]
+            List<ProductItemReqDto> items // [[ 색상, 색상코드, 사이즈 ], ...]
             ) {
-        static public ProductDto from(ProductReqDto productReqDto) {
+        static public ProductDto from(ProductRegisterReqDto productRegisterReqDto) {
             return new ProductDto(
-//                    productReqDto.id(),
                     null,
-                    productReqDto.categories(),
-                    productReqDto.brandName(),
-                    productReqDto.productName(),
-                    productReqDto.price(),
-                    productReqDto.description()
+                    productRegisterReqDto.categories(),
+                    productRegisterReqDto.brandName(),
+                    productRegisterReqDto.productName(),
+                    productRegisterReqDto.price(),
+                    productRegisterReqDto.description()
             );
         }
 };

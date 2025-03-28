@@ -10,7 +10,7 @@ import org.springframework.data.domain.Slice;
 import java.util.Optional;
 
 public interface ProductReadService {
-    Slice<ProductResDto> getAllProducts(ProductFilterCondition condition, Pageable pageable);
+    Slice<ProductResDto> getAllProducts(ProductFilterCondition condition, Pageable pageable, Long offsetId);
 
     Optional<ProductResDto> getProductById(Long id);
 }

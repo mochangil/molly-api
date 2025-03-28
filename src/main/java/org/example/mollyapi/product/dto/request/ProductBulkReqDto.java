@@ -23,7 +23,6 @@ public class ProductBulkReqDto {
 
     private String brandName;
 
-//    private Category category;
     private Long categoryId;
 
     @Builder
@@ -33,13 +32,11 @@ public class ProductBulkReqDto {
         this.description = description;
         this.price = price;
         this.brandName = brandName;
-//        this.category = category;
         this.categoryId = categoryId;
     }
 
     public Product toProduct(User user, Category category) {
         return Product.builder()
-                .id(this.id)
                 .productName(this.productName)
                 .description(this.description)
                 .brandName(this.brandName)
@@ -48,16 +45,4 @@ public class ProductBulkReqDto {
                 .price(this.price)
                 .build();
     }
-
-//    public Product toProduct(User user) {
-//        return Product.builder()
-//                .id(this.id)
-//                .productName(this.productName)
-//                .description(this.description)
-//                .brandName(this.brandName)
-//                .category(this.category)
-//                .user(user)
-//                .price(this.price)
-//                .build();
-//    }
 }

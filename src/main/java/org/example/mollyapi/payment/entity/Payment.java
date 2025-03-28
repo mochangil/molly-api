@@ -30,7 +30,7 @@ public class Payment extends Base {
     @Column
     private Long amount;
 
-    @Column(unique = true, length = 30)
+    @Column(nullable = false, unique = true, length = 30)
     private String paymentKey;
 
     @Column
