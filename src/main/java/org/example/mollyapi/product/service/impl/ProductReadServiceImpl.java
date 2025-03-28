@@ -2,6 +2,7 @@ package org.example.mollyapi.product.service.impl;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.mollyapi.product.dto.ProductAndThumbnailDto;
 import org.example.mollyapi.product.dto.ProductFilterCondition;
 import org.example.mollyapi.product.dto.ProductItemDto;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProductReadServiceImpl implements ProductReadService {
@@ -47,8 +49,13 @@ public class ProductReadServiceImpl implements ProductReadService {
             offsetId = 0L;
         }
 
+        long startTime = System.currentTimeMillis(); // 시작 시간 기록
         Slice<ProductAndThumbnailDto> page = productRepository.findByCondition(condition, pageable, offsetId);
-
+        long endTime = System.currentTimeMillis(); // 종료 시간 기록
+        long elapsedTime = endTime - startTime;
+        if (elapsedTime > 2000) {
+            log.debug("Execution time: " + (endTime - startTime) + " ms");
+        }
         return page.map(this::convertToProductResDto);
     }
 
