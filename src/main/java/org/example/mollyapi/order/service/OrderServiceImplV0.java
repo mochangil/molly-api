@@ -3,7 +3,6 @@ package org.example.mollyapi.order.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.mollyapi.address.dto.AddressResponseDto;
-import org.example.mollyapi.address.entity.Address;
 import org.example.mollyapi.address.repository.AddressRepository;
 import org.example.mollyapi.cart.entity.Cart;
 import org.example.mollyapi.cart.repository.CartRepository;
@@ -16,49 +15,43 @@ import org.example.mollyapi.delivery.repository.DeliveryRepository;
 import org.example.mollyapi.delivery.type.DeliveryStatus;
 import org.example.mollyapi.order.dto.*;
 import org.example.mollyapi.order.entity.*;
+import org.example.mollyapi.order.event.V2.event.order.OrderInitiateEvent;
+import org.example.mollyapi.order.event.V2.event.order.OrderPostProcessEvent;
+import org.example.mollyapi.order.event.V2.event.order.OrderPreProcessEvent;
+import org.example.mollyapi.order.event.V2.event.order.OrderProcessEvent;
 import org.example.mollyapi.order.repository.OrderDetailRepository;
 import org.example.mollyapi.order.repository.OrderRepository;
 import org.example.mollyapi.order.type.CancelStatus;
 import org.example.mollyapi.order.type.OrderStatus;
 import org.example.mollyapi.payment.dto.request.PaymentConfirmReqDto;
-import org.example.mollyapi.payment.dto.request.PaymentRequestDto;
-import org.example.mollyapi.payment.dto.response.PaymentInfoResDto;
 import org.example.mollyapi.payment.dto.response.PaymentResDto;
 import org.example.mollyapi.payment.entity.Payment;
 import org.example.mollyapi.payment.repository.PaymentRepository;
-import org.example.mollyapi.payment.service.PaymentService;
 import org.example.mollyapi.payment.type.PaymentStatus;
-import org.example.mollyapi.payment.util.AESUtil;
 import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.repository.ProductItemRepository;
 import org.example.mollyapi.review.repository.ReviewRepository;
 import org.example.mollyapi.user.entity.User;
 import org.example.mollyapi.user.repository.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataAccessException;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
-import static java.lang.Integer.parseInt;
 import static org.example.mollyapi.common.exception.error.impl.OrderError.*;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-//@Transactional
-public class OrderServiceImpl implements OrderService{
+public class OrderServiceImplV0 {
     private final OrderRepository orderRepository;
     private final OrderDetailRepository orderDetailRepository;
     private final ProductItemRepository productItemRepository;
@@ -68,50 +61,120 @@ public class OrderServiceImpl implements OrderService{
     private final AddressRepository addressRepository;
     private final ReviewRepository reviewRepository;
     private final CartRepository cartRepository;
-    private final PaymentService paymentService;
     private final OrderStockService validationService;
 
 
-    /**
-     * 사용자의 주문 내역 조회 (GET /orders/{userId})
-     */
-    public OrderHistoryResponseDto getUserOrders(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. userId=" + userId));
-
-        List<Order> orders = orderRepository.findOrdersByUserAndStatusIn(
-                user, List.of(OrderStatus.SUCCEEDED, OrderStatus.WITHDRAW)
-        );
-
-        return new OrderHistoryResponseDto(userId, orders, paymentRepository, reviewRepository);
-    }
-
+    private final ApplicationEventPublisher publisher;
 
     /**
-     * 주문 상세 조회 (GET /orders/{orderId})
+     * 결제 요청
      */
-    public OrderResponseDto getOrderDetails(Long orderId) {
-        // 주문 조회
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 주문을 찾을 수 없습니다. orderId=" + orderId));
+//    @Transactional
+//    public PaymentResDto processPayment(Long userId, String paymentKey, String tossOrderId, Long amount, String point, String paymentType, DeliveryReqDto deliveryInfo) {
+//        System.out.println("----------------------------------ProcessPayment 트랜잭션 시작----------------------------------");
+//
+//        /// 1. 사용자 조회 ✅
+//        User user = userRepository.findById(userId)
+//                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. userId=" + userId));
+//
+//        /// 2-1. 주문 조회 ✅
+//        final String tossOrderIdFinal = tossOrderId; // effectively final 보장
+//        Order order = orderRepository.findByTossOrderIdWithDetails(tossOrderIdFinal)
+//                .orElseThrow(() -> new IllegalArgumentException("해당 주문을 찾을 수 없습니다. tossOrderId=" + tossOrderIdFinal));
+//
+//        /// 2-2. 주문 상태 확인 (재시도 시 필요) ✅
+//        if (order.getStatus() != OrderStatus.PENDING) {
+//            throw new IllegalStateException("결제 재시도는 PENDING 상태에서만 가능합니다.");
+//        }
+//
+//        /// 2-3. 주문 만료 시간 확인 (시간 초과 시 주문 실패 처리) ✅
+//        if (order.getExpirationTime().isBefore(LocalDateTime.now())) {
+//            failOrder(tossOrderId);
+//            throw new IllegalStateException("결제 가능 시간이 초과되었습니다. 주문을 다시 생성해주세요.");
+//        }
+//
+//        /// 3-1. 기존 결제 정보 확인 (주문에 결제는 하나밖에 없음)
+//        Optional<PaymentInfoResDto> paymentInfoResDto = paymentService.findLatestPayment(order.getId());
+//        boolean isRetry = paymentInfoResDto.isPresent(); // 기존 결제 내역이 있으면 결제 재시도로 판단
+//        if (paymentInfoResDto.isPresent() && paymentInfoResDto.get().paymentStatus() == PaymentStatus.APPROVED) {
+//            throw new IllegalArgumentException("이미 결제된 주문입니다.");
+//        }
+//
+//        /// 3-2. 최초 요청이 아닌 경우 (재시도 시) 결제 정보 등 파라미터 재입력 받아 업데이트 가능
+//        if (isRetry) {
+//            PaymentInfoResDto latestPaymentInfo = paymentService.findLatestPayment(order.getId())
+//                    .orElseThrow(() -> new IllegalArgumentException("결제 정보가 없습니다."));
+//
+//            paymentKey = latestPaymentInfo.paymentKey();
+//            tossOrderId = latestPaymentInfo.tossOrderId();
+//            amount = order.getTotalAmount();
+////            point = String.valueOf(order.getPointUsage());
+//            paymentType = order.getPaymentType();
+////            deliveryInfo = order.getDelivery().toDto();
+//        }
+//
+//        /// 3-3. 결제 정보 검증 추가
+//        if (paymentKey == null || paymentKey.trim().isEmpty()) {
+//            throw new IllegalArgumentException("결제 정보가 누락되었습니다.");
+//        }
+//
+//        /// 3-4. 배송 정보 검증 추가
+//        deliveryInfo.validate();
+//
+//        /// 3-5. 결제 금액 검증
+//        validateAmount(order.getTotalAmount(), amount);
+//
+//        /// 4. 포인트 정보 복호화 및 검증, 차감 (tx1)
+//        Integer pointUsage = Optional.ofNullable(AESUtil.decryptWithSalt(point))
+//                .map(Integer::parseInt)
+//                .orElse(0); // 기본값 0 설정. NumberFormatException 방지
+//        validateUserPoint(user, pointUsage);
+//        user.updatePoint(-pointUsage);
+//        userRepository.save(user);
+//
+//        /// 5. 배송 정보 생성 후 주문에 연결 (tx1)
+//        Delivery delivery = createDelivery(deliveryInfo);
+//        order.setDelivery(delivery);
+//        deliveryRepository.save(delivery); // * 서비스로
+//
+//        /// 6. 재고 검증 및 차감, 장바구니 삭제 : 첫 결제 요청일 때만 실핼 (tx2)
+//        if (!isRetry) {
+//            validationService.validateBeforePayment(order.getId());
+//        }
+//
+//        /// 7. 주문 정보 저장
+//        orderRepository.save(order);
+//
+//        /// 10. PaymentRequestDto 생성 후 PaymentService 호출
+//        PaymentConfirmReqDto paymentConfirmReqDto = new PaymentConfirmReqDto(
+//                order.getId(),
+//                order.getTossOrderId(),
+//                order.getPaymentId(),
+//                order.getTotalAmount(),
+//                order.getPaymentType(),
+//                order.getPointUsage()
+//        );
+//
+//        /// 11. 결제 진행
+//        Payment payment = paymentService.processPayment(userId, paymentConfirmReqDto);
+//
+//        // 12. 결제 성공/실패에 따라 나머지 로직 처리
+//        if (Objects.requireNonNull(payment.getStatus()) == PaymentStatus.APPROVED) {
+//            log.info("APPROVE 실행");
+//            order.addPayment(payment);  // 결제 추가
+//            order.updateStatus(OrderStatus.SUCCEEDED);
+//            orderRepository.save(order);
+//        }
+//        System.out.println("----------------------------------ProcessPayment 트랜잭션 종료----------------------------------");
+//        return PaymentResDto.from(payment);
+//    }
 
-        // 기본 배송지 조회
-        AddressResponseDto defaultAddress = addressRepository.findByUserAndDefaultAddr(order.getUser(), true)
-                .map(AddressResponseDto::from)
-                .orElse(null);
-
-        // 주문 상세 응답 반환
-        return OrderResponseDto.from(order, order.getOrderDetails(), order.getUser().getPoint(), defaultAddress);
-    }
-
-    //--------------------------------------------------------------------//
 
     /**
      * 주문 생성
      */
     @Transactional
     public OrderResponseDto createOrder(Long userId, List<OrderRequestDto> orderRequests) {
-        log.info("create Order 실행");
         if (userId == null) {
             throw new IllegalArgumentException("주문을 생성하려면 유효한 사용자 ID가 필요합니다.");
         }
@@ -119,10 +182,10 @@ public class OrderServiceImpl implements OrderService{
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. userId=" + userId));
 
-//        // 중복 주문 방지 - 같은 사용자에 진행 중인 주문이 있는지 확인
-//        if (orderRepository.existsByUserIdAndStatus(userId, OrderStatus.PENDING)) {
-//            throw new IllegalArgumentException("현재 진행 중인 주문이 있습니다.");
-//        }
+        // 중복 주문 방지 - 같은 사용자에 진행 중인 주문이 있는지 확인
+        if (orderRepository.existsByUserIdAndStatus(userId, OrderStatus.PENDING)) {
+            throw new IllegalArgumentException("현재 진행 중인 주문이 있습니다.");
+        }
 
         // 주문 요청 데이터 검증
         for (OrderRequestDto req : orderRequests) {
@@ -190,11 +253,11 @@ public class OrderServiceImpl implements OrderService{
         ProductItem productItem = productItemRepository.findById(itemId)
                 .orElseThrow(() -> new IllegalArgumentException("상품이 존재하지 않습니다. itemId=" + itemId));
 
-//        // 중복 주문 방지: 같은 상품을 이미 주문했는지 체크
-//        long existingOrderCount = orderRepository.countByUserAndProductItem(order.getUser(), productItem.getId());
-//        if (existingOrderCount > 0) {
-//            throw new IllegalArgumentException("이미 동일 상품에 대한 주문이 진행 중입니다.");
-//        }
+        // 중복 주문 방지: 같은 상품을 이미 주문했는지 체크
+        long existingOrderCount = orderRepository.countByUserAndProductItem(order.getUser(), productItem.getId());
+        if (existingOrderCount > 0) {
+            throw new IllegalArgumentException("이미 동일 상품에 대한 주문이 진행 중입니다.");
+        }
 
         // 재고 조회(차감 X)
         if (productItem.getQuantity() < quantity) {
@@ -211,26 +274,6 @@ public class OrderServiceImpl implements OrderService{
                 productItem.getProduct().getProductName(),
                 req.cartId()
         );
-    }
-
-    /**
-     * 주문 취소: 결제 요청 전 주문을 취소하는 경우(API)
-     */
-    public String cancelOrder(Long orderId) {
-        // 주문 조회
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 주문을 찾을 수 없습니다. orderId=" + orderId));
-
-        // 주문 상태가 PENDING이 아닐 경우 취소 불가
-        if (order.getStatus() != OrderStatus.PENDING) {
-            throw new IllegalStateException("결제 요청이 진행된 주문은 취소할 수 없습니다.");
-        }
-
-        // 주문 및 주문 상세 삭제 (Cascade로 OrderDetail도 삭제됨)
-        orderRepository.delete(order);
-
-        // 클라이언트에 응답 메시지 반환
-        return "주문이 취소되었습니다.";
     }
 
 
@@ -255,247 +298,13 @@ public class OrderServiceImpl implements OrderService{
     }
 
 
-    /**
-     * 결제 요청
-     */
-    @Transactional
-    public PaymentResDto processPayment(Long userId, String paymentKey, String tossOrderId, Long amount, String point, String paymentType, DeliveryReqDto deliveryInfo) {
-        System.out.println("----------------------------------ProcessPayment 트랜잭션 시작----------------------------------");
-
-        /// 1. 사용자 조회
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. userId=" + userId));
-
-        /// 2-1. 주문 조회
-        final String tossOrderIdFinal = tossOrderId; // effectively final 보장
-        Order order = orderRepository.findByTossOrderIdWithDetails(tossOrderIdFinal)
-                .orElseThrow(() -> new IllegalArgumentException("해당 주문을 찾을 수 없습니다. tossOrderId=" + tossOrderIdFinal));
-
-        /// 2-2. 주문 상태 확인 (재시도 시 필요)
-        if (order.getStatus() != OrderStatus.PENDING) {
-            throw new IllegalStateException("결제 재시도는 PENDING 상태에서만 가능합니다.");
-        }
-
-        /// 2-3. 주문 만료 시간 확인 (시간 초과 시 주문 실패 처리)
-        if (order.getExpirationTime().isBefore(LocalDateTime.now())) {
-            failOrder(tossOrderId);
-            throw new IllegalStateException("결제 가능 시간이 초과되었습니다. 주문을 다시 생성해주세요.");
-        }
-
-        /// 3-1. 기존 결제 정보 확인 (주문에 결제는 하나밖에 없음)
-        Optional<PaymentInfoResDto> paymentInfoResDto = paymentService.findLatestPayment(order.getId());
-        boolean isRetry = paymentInfoResDto.isPresent(); // 기존 결제 내역이 있으면 결제 재시도로 판단
-        if (paymentInfoResDto.isPresent() && paymentInfoResDto.get().paymentStatus() == PaymentStatus.APPROVED) {
-            throw new IllegalArgumentException("이미 결제된 주문입니다.");
-        }
-
-        Delivery delivery = Delivery.from(deliveryInfo, order.getId());
-        deliveryRepository.save(delivery);
-
-        order.setDelivery(delivery);
-        orderRepository.save(order);
-
-        /// 3-2. 최초 요청이 아닌 경우 (재시도 시) 결제 정보 등 파라미터 재입력 받아 업데이트 가능
-        if (isRetry) {
-            PaymentInfoResDto latestPaymentInfo = paymentService.findLatestPayment(order.getId())
-                    .orElseThrow(() -> new IllegalArgumentException("결제 정보가 없습니다."));
-
-            paymentKey = latestPaymentInfo.paymentKey();
-            tossOrderId = latestPaymentInfo.tossOrderId();
-            amount = order.getTotalAmount();
-//            point = String.valueOf(order.getPointUsage());
-            paymentType = order.getPaymentType();
-//            deliveryInfo = order.getDelivery().toDto();
-        }
-
-        /// 3-3. 결제 정보 검증 추가
-        if (paymentKey == null || paymentKey.trim().isEmpty()) {
-            throw new IllegalArgumentException("결제 정보가 누락되었습니다.");
-        }
-
-        /// 3-4. 배송 정보 검증 추가
-        deliveryInfo.validate();
-
-        /// 3-5. 결제 금액 검증
-        validateAmount(order.getTotalAmount(), amount);
-
-        /// 4. 포인트 정보 복호화 및 검증, 차감 (tx1)
-        Integer pointUsage = Optional.ofNullable(AESUtil.decryptWithSalt(point))
-                .map(Integer::parseInt)
-                .orElse(0); // 기본값 0 설정. NumberFormatException 방지
-        validateUserPoint(user, pointUsage);
-        user.updatePoint(-pointUsage);
-        userRepository.save(user);
-
-        /// 5. 배송 정보 생성 후 주문에 연결 (tx1)
-//        Delivery delivery = createDelivery(deliveryInfo);
-//        delivery.setOrder(order);
-//        order.setDelivery(delivery);
-        deliveryRepository.save(delivery); // * 서비스로
-        orderRepository.save(order);
-//        Delivery delivery = Delivery.from(deliveryInfo, order);  // ✅ Order 설정 추가
-//        deliveryRepository.save(delivery);
-
-        /// 6. 재고 검증 및 차감, 장바구니 삭제 : 첫 결제 요청일 때만 실핼 (tx2)
-        if (!isRetry) {
-            validationService.validateBeforePayment(order.getId());
-        }
-
-        /// 7. 주문 정보 저장
-//        orderRepository.save(order);
-
-        /// 10. PaymentRequestDto 생성 후 PaymentService 호출
-        PaymentConfirmReqDto paymentConfirmReqDto = new PaymentConfirmReqDto(
-//                order.getId(),
-                tossOrderId,
-                paymentKey,
-                amount,
-                paymentType,
-                pointUsage
-        );
-
-        /// 11. 결제 진행
-        Payment payment = paymentService.processPayment(userId, paymentConfirmReqDto);
-        log.info("payment = {}", payment);
-        // 12. 결제 성공/실패에 따라 나머지 로직 처리
-        if (Objects.requireNonNull(payment.getStatus()) == PaymentStatus.APPROVED) {
-            log.info("APPROVE 실행");
-            order.addPayment(payment);  // 결제 추가
-            order.updateStatus(OrderStatus.SUCCEEDED);
-            orderRepository.save(order);
-        }
-        System.out.println("----------------------------------ProcessPayment 트랜잭션 종료----------------------------------");
-        return PaymentResDto.from(payment);
-    }
-
-//    @Transactional
-//    public PaymentResDto processPaymentTest(Long userId, String paymentKey, String tossOrderId, Long amount, String point, String paymentType, DeliveryReqDto deliveryInfo, String status) {
-//        System.out.println("----------------------------------ProcessPayment 트랜잭션 시작----------------------------------");
-//
-//        /// 1. 사용자 조회
-//        User user = userRepository.findById(userId)
-//                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. userId=" + userId));
-//
-//        /// 2-1. 주문 조회
-//        final String tossOrderIdFinal = tossOrderId; // effectively final 보장
-//        Order order = orderRepository.findByTossOrderIdWithDetails(tossOrderIdFinal)
-//                .orElseThrow(() -> new IllegalArgumentException("해당 주문을 찾을 수 없습니다. tossOrderId=" + tossOrderIdFinal));
-//
-//        log.info("status = {}", order.getStatus());
-//        /// 2-2. 주문 상태 확인 (재시도 시 필요)
-//        if (order.getStatus() != OrderStatus.PENDING) {
-//            throw new IllegalStateException("결제 재시도는 PENDING 상태에서만 가능합니다.");
-//        }
-//
-//        /// 2-3. 주문 만료 시간 확인 (시간 초과 시 주문 실패 처리)
-//        if (order.getExpirationTime().isBefore(LocalDateTime.now())) {
-//            failOrder(tossOrderId);
-//            throw new IllegalStateException("결제 가능 시간이 초과되었습니다. 주문을 다시 생성해주세요.");
-//        }
-//
-//        /// 3. `Delivery` 생성 및 `Order`와 연결
-//        Delivery delivery = Delivery.from(deliveryInfo, order.getId()); // 🚀 orderId 설정
-//        deliveryRepository.save(delivery); // orderId 포함한 채 저장됨
-//
-//        /// 4. `Order`에 `delivery_id` 설정 후 저장
-//        order.setDelivery(delivery);
-//        orderRepository.save(order); // delivery_id 포함된 상태로 저장됨
-//
-//        if (delivery == null) {
-//            throw new IllegalArgumentException("배송 정보를 생성할 수 없습니다.");
-//        }
-//
-//        /// 3-1. 기존 결제 정보 확인 (주문에 결제는 하나밖에 없음)
-//        Optional<PaymentInfoResDto> paymentInfoResDto = paymentService.findLatestPayment(order.getId());
-//        boolean isRetry = paymentInfoResDto.isPresent(); // 기존 결제 내역이 있으면 결제 재시도로 판단
-////        if (paymentInfoResDto.isPresent() && paymentInfoResDto.get().paymentStatus() == PaymentStatus.APPROVED) {
-////            throw new IllegalArgumentException("이미 결제된 주문입니다.");
-////        }
-//
-//
-//        /// 3-2. 최초 요청이 아닌 경우 (재시도 시) 결제 정보 등 파라미터 재입력 받아 업데이트 가능
-//        if (isRetry) {
-//            PaymentInfoResDto latestPaymentInfo = paymentService.findLatestPayment(order.getId())
-//                    .orElseThrow(() -> new IllegalArgumentException("결제 정보가 없습니다."));
-//
-//            paymentKey = latestPaymentInfo.paymentKey();
-//            tossOrderId = latestPaymentInfo.tossOrderId();
-//            amount = order.getTotalAmount();
-//            point = String.valueOf(order.getPointUsage());
-//            paymentType = order.getPaymentType();
-//            deliveryInfo = order.getDelivery().toDto();
-//        }
-//
-//        /// 3-3. 결제 정보 검증 추가
-//        if (paymentKey == null || paymentKey.trim().isEmpty()) {
-//            throw new IllegalArgumentException("결제 정보가 누락되었습니다.");
-//        }
-//
-//        /// 3-4. 배송 정보 검증 추가
-//        deliveryInfo.validate();
-//
-//        /// 3-5. 결제 금액 검증
-//        validateAmount(order.getTotalAmount(), amount);
-//
-//        /// 4. 포인트 정보 복호화 및 검증, 차감 (tx1)
-////        Integer pointUsage = Optional.ofNullable(AESUtil.decryptWithSalt(point))
-////                .map(Integer::parseInt)
-////                .orElse(0); // 기본값 0 설정. NumberFormatException 방지
-//        Integer pointUsage = Integer.parseInt(point);
-//        validateUserPoint(user, pointUsage);
-//        user.updatePoint(-pointUsage);
-//        userRepository.save(user);
-//
-////        /// 5. 배송 정보 생성 후 주문에 연결 (tx1)
-//////        Delivery delivery = createDelivery(deliveryInfo);
-//////        delivery.setOrder(order);
-//////        order.setDelivery(delivery);
-////        orderRepository.save(order);
-////        deliveryRepository.save(delivery); // * 서비스로
-//////        Delivery delivery = Delivery.from(deliveryInfo, order);  // ✅ Order 설정 추가
-//////        deliveryRepository.save(delivery);
-//
-//        /// 6. 재고 검증 및 차감, 장바구니 삭제 : 첫 결제 요청일 때만 실핼 (tx2)
-//        if (!isRetry) {
-//            validationService.validateBeforePayment(order.getId());
-//        }
-//
-//        /// 7. 주문 정보 저장
-////        orderRepository.save(order);
-//
-//        /// 10. PaymentRequestDto 생성 후 PaymentService 호출
-//        PaymentConfirmReqDto paymentConfirmReqDto = new PaymentConfirmReqDto(
-////                order.getId(),
-//                order.getTossOrderId(),
-//                order.getPaymentId(),
-//                order.getTotalAmount(),
-//                order.getPaymentType(),
-//                order.getPointUsage()
-//        );
-//
-//        /// 11. 결제 진행
-//        Payment payment = paymentService.processPaymentTest(userId, paymentConfirmReqDto, status);
-//        log.info("payment = {}", payment);
-//        // 12. 결제 성공/실패에 따라 나머지 로직 처리
-//        if (Objects.requireNonNull(payment.getStatus()) == PaymentStatus.APPROVED) {
-//            log.info("APPROVE 실행");
-//            order.addPayment(payment);  // 결제 추가
-//            order.updateStatus(OrderStatus.SUCCEEDED);
-//            orderRepository.save(order);
-//        }
-//        log.info("payment paymentKey = {}", payment.getPaymentKey());
-//        System.out.println("----------------------------------ProcessPayment 트랜잭션 종료----------------------------------");
-//        return PaymentResDto.from(payment);
-//    }
-
-
     private Delivery createDelivery(DeliveryReqDto deliveryInfo, Long orderId) {
         return Delivery.from(deliveryInfo, orderId);
     }
 
-    /**
-     * 결제 실패 - 결제 자동 재시도
-     */
+//    /**
+//     * 결제 실패 - 결제 자동 재시도
+//     */
 //    @Transactional(propagation = Propagation.REQUIRES_NEW)
 ////    @Transactional
 //    public void handlePaymentFailure(Payment payment, String tossOrderId, String failureReason) {
@@ -776,5 +585,69 @@ public class OrderServiceImpl implements OrderService{
         return orderDetails.stream()
                 .mapToLong(d -> d.getPrice() * d.getQuantity())
                 .sum();
+    }
+
+//    @Transactional
+    public PaymentResDto processPayment(Long userId, String paymentKey, String tossOrderId, Long amount, String point, String paymentType, DeliveryReqDto deliveryInfo) {
+
+        /// 1. 사용자 조회
+        userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. userId=" + userId));
+
+        Order order = orderRepository.findByTossOrderId(tossOrderId)
+                .orElseThrow(() -> new CustomException(PaymentError.ORDER_NOT_FOUND));
+
+        ///  2. order 시작 - 주문에 대한 검증
+        publisher.publishEvent(new OrderInitiateEvent(tossOrderId));
+
+        ///  3. order process 전 처리 - stock, point
+        publisher.publishEvent(new OrderPreProcessEvent(userId, tossOrderId, point));
+
+        ///  4. order Process - cart, delivery, payment
+        PaymentConfirmReqDto paymentConfirmReqDto = getPaymentConfirmReqDto(order);
+        publisher.publishEvent(new OrderProcessEvent(userId, tossOrderId, deliveryInfo, paymentConfirmReqDto));
+
+        ///  4. order Process 후 처리
+        publisher.publishEvent(new OrderPostProcessEvent());
+
+        return null;
+    }
+
+    @Transactional
+    public void successOrder(String tossOrderId, String paymentKey) {
+        System.out.println(tossOrderId);
+        Order order = orderRepository.findByTossOrderId(tossOrderId)
+                .orElseThrow( () -> new CustomException(PaymentError.ORDER_NOT_FOUND));
+        Payment payment = paymentRepository.findByPaymentKey(paymentKey)
+                .orElseThrow( () -> new CustomException(PaymentError.PAYMENT_NOT_FOUND));
+        order.updateStatus(OrderStatus.SUCCEEDED);
+        order.addPayment(payment);
+        orderRepository.save(order);
+    }
+
+
+
+    private PaymentConfirmReqDto getPaymentConfirmReqDto(Order order) {
+        return new PaymentConfirmReqDto(
+//                order.getId(),
+                order.getTossOrderId(),
+                order.getPaymentId(),
+                order.getTotalAmount(),
+                order.getPaymentType(),
+                order.getPointUsage()
+        );
+    }
+
+    @Transactional
+    public void validateOrder(String tossOrderId) {
+
+        Order order = orderRepository.findByTossOrderId(tossOrderId)
+                .orElseThrow(() -> new CustomException(PaymentError.ORDER_NOT_FOUND));
+
+        ///  재시도되는 주문 = CANCELED
+        if (!(order.isPending() || order.isCanceled())) { throw new IllegalArgumentException("결제 시도는 PENDING 상태에서만 가능합니다.");}
+
+        ///  만료 검증
+        order.validateExpiration();
     }
 }

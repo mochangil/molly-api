@@ -30,7 +30,7 @@ public class Payment extends Base {
     @Column
     private Long amount;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 30)
     private String paymentKey;
 
     @Column
@@ -102,7 +102,7 @@ public class Payment extends Base {
     }
 
 
-    public void successPayment() {
+    public void approvePayment() {
         this.paymentStatus = PaymentStatus.APPROVED;
     }
 
@@ -114,6 +114,9 @@ public class Payment extends Base {
         return this.paymentStatus;
     }
 
+    public boolean isApproved() {
+        return this.paymentStatus == PaymentStatus.APPROVED;
+    }
 //    public void increaseRetryCount() {
 //        this.retry_count++;
 //    }

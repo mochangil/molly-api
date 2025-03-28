@@ -6,6 +6,7 @@ import org.example.mollyapi.common.exception.CustomException;
 import org.example.mollyapi.common.exception.error.CustomError;
 import org.example.mollyapi.order.entity.Order;
 import org.example.mollyapi.order.repository.OrderRepository;
+import org.example.mollyapi.order.service.OrderService;
 import org.example.mollyapi.order.type.CancelStatus;
 import org.example.mollyapi.order.type.OrderStatus;
 import org.example.mollyapi.payment.dto.request.PaymentConfirmReqDto;
@@ -24,6 +25,7 @@ import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
@@ -60,6 +62,9 @@ public class TossPaymentServiceImplTest {
 
     @Autowired
     private PaymentRepository paymentRepository;
+
+    @Autowired
+    private ApplicationEventPublisher applicationEventPublisher;
 
     private User user;
     private Order order;
@@ -159,7 +164,8 @@ public class TossPaymentServiceImplTest {
         ResponseEntity<TossConfirmResDto> response = ResponseEntity
                 .status(HttpStatus.BAD_GATEWAY)
                 .body(null);
-        given(paymentWebClientUtil.confirmPayment(any(), any())).willReturn(response);paymentServiceImpl = new PaymentServiceImpl(paymentRepository, paymentWebClientUtil,userRepository, orderRepository);
+        given(paymentWebClientUtil.confirmPayment(any(), any())).willReturn(response);
+        paymentServiceImpl = new PaymentServiceImpl(paymentRepository, paymentWebClientUtil,userRepository, orderRepository, applicationEventPublisher);
 
         //when & then
         assertThatThrownBy(() -> paymentServiceImpl

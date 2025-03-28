@@ -2,7 +2,9 @@ package org.example.mollyapi.order.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.example.mollyapi.delivery.dto.DeliveryReqDto;
 import org.example.mollyapi.delivery.entity.Delivery;
+import org.example.mollyapi.order.event.V3.event.order.OrderInitiateEvent;
 import org.example.mollyapi.order.type.CancelStatus;
 import org.example.mollyapi.order.type.OrderStatus;
 import org.example.mollyapi.payment.entity.Payment;
@@ -39,7 +41,7 @@ public class Order {
     @JoinColumn(name = "delivery_id")
     private Delivery delivery;
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "order", cascade = CascadeType.MERGE, orphanRemoval = true)
     private List<Payment> payments = new ArrayList<>();
 
     @Column(nullable = false)
@@ -127,9 +129,16 @@ public class Order {
 //                });
 //    }
 
+    public void addOrderInfo(String paymentKey, Long amount, String paymentType) {
+        this.paymentId = paymentKey;
+        this.paymentAmount = amount;
+        this.paymentType = paymentType;
+    }
+
     public void addPayment(Payment payment) {
         if (payment == null) return;
 
+        if (this.payments == null) this.payments = new ArrayList<>();
         this.payments.add(payment);
         this.paymentId = payment.getPaymentKey();
         this.paymentType = payment.getPaymentType();
@@ -145,5 +154,21 @@ public class Order {
 
     public void setPointSave(int point) {
         this.pointSave = point;
+    }
+
+    public void validateExpiration() {
+        if (expirationTime.isBefore(LocalDateTime.now())) {
+            // 이 경우, 주문 객체 내부에서 failOrder를 호출할 수 있다면 호출하거나,
+            // 주문 실패 처리를 별도 서비스에서 호출 후 예외를 던지도록 할 수 있다.
+            throw new IllegalStateException("결제 가능 시간이 초과되었습니다. 주문을 다시 생성해주세요.");
+        }
+    }
+
+    public boolean isPending(){
+        return status.equals(OrderStatus.PENDING);
+    }
+
+    public boolean isCanceled(){
+        return status.equals(OrderStatus.CANCELED);
     }
 }

@@ -1,52 +1,49 @@
 package org.example.mollyapi.payment.service;
 
 
-import lombok.extern.slf4j.Slf4j;
-import org.example.mollyapi.common.exception.CustomException;
-import org.example.mollyapi.common.exception.error.impl.PaymentError;
+import org.example.mollyapi.delivery.dto.DeliveryReqDto;
 import org.example.mollyapi.order.entity.Order;
 import org.example.mollyapi.order.repository.OrderRepository;
-import org.example.mollyapi.order.service.OrderService;
+import org.example.mollyapi.order.service.OrderServiceImplV2;
 import org.example.mollyapi.order.type.CancelStatus;
 import org.example.mollyapi.order.type.OrderStatus;
 import org.example.mollyapi.payment.dto.request.PaymentConfirmReqDto;
-import org.example.mollyapi.payment.dto.response.PaymentInfoResDto;
 import org.example.mollyapi.payment.dto.response.TossConfirmResDto;
 import org.example.mollyapi.payment.entity.Payment;
-import org.example.mollyapi.payment.exception.RetryablePaymentException;
 import org.example.mollyapi.payment.repository.PaymentRepository;
-import org.example.mollyapi.payment.service.impl.PaymentServiceImpl;
 import org.example.mollyapi.payment.type.PaymentStatus;
+import org.example.mollyapi.payment.util.AESUtil;
 import org.example.mollyapi.payment.util.PaymentWebClientUtil;
 import org.example.mollyapi.user.entity.User;
 import org.example.mollyapi.user.repository.UserRepository;
 import org.example.mollyapi.user.type.Sex;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mockStatic;
 
 @SpringBootTest
-@Slf4j
-@Transactional
-@ActiveProfiles("test")
-public class PaymentServiceImplTest {
+public class OrderServiceImplV2Test {
 
+    @Autowired
+    private OrderServiceImplV2 orderServiceImplV2;
 
     @Autowired
     private PaymentRepository paymentRepository;
@@ -69,87 +66,59 @@ public class PaymentServiceImplTest {
     Payment payment2;
     Payment payment3;
 
-
-    @Autowired
-    private PaymentServiceImpl paymentServiceImpl;
-
-
     @BeforeEach
     void setUp() {
-        //given
         user = createUser("momo");
         order = createOrder(user, "ord-20250213132349-6572", "pay-20250213132349-6572",50000L);
         payment1 = createPayment(user,order,"pay-20250213132349-6573",50000L);
         payment2 = createPayment(user,order,"pay-20250213132349-6574",50000L);
         payment3 = createPayment(user,order,"pay-20250213132349-6575",50000L);
-
         userRepository.save(user);
         orderRepository.save(order);
         paymentRepository.saveAll(List.of(payment1, payment2, payment3));
     }
 
-
-    @Test
-    void findLatestPayments(){
-
-        //given
-        Long orderId = order.getId();
-
-        //when
-        PaymentInfoResDto paymentInfoResDto = paymentService.findLatestPayment(orderId)
-                .orElseThrow();
-
-        //then
-        assertThat(paymentInfoResDto)
-                .extracting("paymentId","amount")
-                .contains(payment3.getId(),payment3.getAmount());
-    }
-
-    @DisplayName("User에 해당하는 결제를 모두 조회합니다")
-    @Test
-    void findUserPayments(){
-        //given
-        Long userId = user.getUserId();
-
-        //when
-        List<PaymentInfoResDto> paymentInfoResDtos = paymentService.findUserPayments(userId);
-
-        //then
-        assertThat(paymentInfoResDtos)
-                .extracting("paymentId","amount")
-                .hasSize(3)
-                .containsExactlyInAnyOrder(
-                        tuple(payment1.getId(), 50000L),
-                        tuple(payment2.getId(), 50000L),
-                        tuple(payment3.getId(), 50000L)
-                );
+    @BeforeAll
+    public static void beforeAll() {
+        // AESUtil Mocking
+        MockedStatic<AESUtil> mockedStatic = mockStatic(AESUtil.class);
+        mockedStatic.when(() -> AESUtil.decryptWithSalt(anyString()))
+                .thenReturn("0");
     }
 
 
-    @DisplayName("결제 요청을 성공합니다.")
+
+    @DisplayName("주문을 성공합니다")
     @Test
-    void processPayment(){
+    void processOrder() {
 
         //given
-        Long userId = user.getUserId();
-
         ResponseEntity<TossConfirmResDto> successResponse = getResponse(HttpStatus.OK);
         given(paymentWebClientUtil.confirmPayment(any(), any()))
                 .willReturn(successResponse);
 
-        PaymentConfirmReqDto paymentConfirmReqDto = new PaymentConfirmReqDto(order.getId(), order.getTossOrderId(), order.getPaymentId(), order.getTotalAmount(),order.getPaymentType(),order.getPointUsage());
+        DeliveryReqDto deliveryReqDto = new DeliveryReqDto(
+            "momo",
+                    "010-5134-1111",
+                    "판교판교",
+                    "12345",
+                    "배송 조심히 해주세요",
+                order.getId()
+        );
 
         //when
-        Payment payment = paymentServiceImpl.processPayment(userId,paymentConfirmReqDto);
+        orderServiceImplV2.processOrder(user.getUserId(), order.getPaymentId(), order.getTossOrderId(), order.getTotalAmount(), "0","NORMAL",deliveryReqDto);
 
         //then
+        Order newOrder = orderRepository.findById(order.getId()).get();
+        assertThat(newOrder.getStatus()).isEqualTo(OrderStatus.SUCCEEDED);
+
+        Payment payment = paymentRepository.findByPaymentKey(order.getPaymentId())
+                        .orElseThrow(() -> new RuntimeException("payment not found"));
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.APPROVED);
-        assertThat(order.getPayments().get(0).getPaymentKey()).isEqualTo(payment.getPaymentKey());
+
+
     }
-
-
-
-
 
 
     private User createUser(String nickname) {
@@ -186,12 +155,9 @@ public class PaymentServiceImplTest {
         );
     }
 
-
-
     private ResponseEntity<TossConfirmResDto> getResponse(HttpStatus status) {
         return ResponseEntity
                 .status(status)
                 .body(null);
     }
-
 }

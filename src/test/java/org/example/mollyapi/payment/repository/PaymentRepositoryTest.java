@@ -9,6 +9,8 @@ import org.example.mollyapi.order.repository.OrderRepository;
 import org.example.mollyapi.order.type.CancelStatus;
 import org.example.mollyapi.order.type.OrderStatus;
 import org.example.mollyapi.payment.entity.Payment;
+import org.example.mollyapi.payment.service.PaymentService;
+import org.example.mollyapi.payment.type.PaymentStatus;
 import org.example.mollyapi.user.entity.User;
 import org.example.mollyapi.user.repository.UserRepository;
 import org.example.mollyapi.user.type.Sex;
@@ -42,13 +44,64 @@ public class PaymentRepositoryTest {
     @Autowired
     private OrderRepository orderRepository;
 
+    @Autowired
+    private PaymentService paymentService;
+
+
+
+
+    ///  생성
+    @DisplayName("새로운 결제를 생성합니다")
+    @Test
+    void createPayment(){
+
+        //given
+        User user = createUser("momo");
+        Order order = createOrder(user, "ord-20250213132349-6572", "pay-20250213132349-6572",50000L);
+        userRepository.save(user);
+        orderRepository.save(order);
+
+        Payment payment1 = createPayment(user,order,"pay-20250213132349-6572",50000L);
+        //when
+        Payment newPayment = paymentService.createPayment(user.getUserId(),order.getId(),order.getTossOrderId(),order.getPaymentId(),"NORMAL",order.getTotalAmount());
+
+        //then
+        assertThat(newPayment)
+                .extracting("tossOrderId", "paymentKey","paymentStatus")
+                .contains(order.getTossOrderId(),order.getPaymentId(),PaymentStatus.PENDING);
+    }
+
+    @DisplayName("")
+    @Test
+    void createDuplicatePayment(){
+        //given
+        User user = createUser("momo");
+        Order order = createOrder(user, "ord-20250213132349-6572", "pay-20250213132349-6572",50000L);
+        userRepository.save(user);
+        orderRepository.save(order);
+        Payment newPayment = paymentService.createPayment(user.getUserId(),order.getId(),order.getTossOrderId(),order.getPaymentId(),"NORMAL",order.getTotalAmount());
+        Payment newPayment2 = paymentService.createPayment(user.getUserId(),order.getId(),order.getTossOrderId(),order.getPaymentId(),"NORMAL",order.getTotalAmount());
+
+        //when
+        paymentRepository.save(newPayment);
+        paymentRepository.save(newPayment2);
+        //then
+        assertThat(newPayment)
+                .extracting("tossOrderId", "paymentKey","paymentStatus")
+                .contains(order.getTossOrderId(),order.getPaymentId(),PaymentStatus.PENDING);
+
+    }
+
+
+    /// 조회
+
     @DisplayName("주문번호에 해당하는 결제를 최신순으로 조회합니다")
     @Test
     void findLatestPaymentByOrderId() {
 
         //given
         User user = createUser("momo");
-        Order order = createOrder(user, "ord-20250213132349-6572", 50000L);
+        Order order = createOrder(user, "ord-20250213132349-6572", "pay-20250213132349-6572", 50000L);
         Payment payment1 = createPayment(user,order,"pay-20250213132349-6572",50000L);
         Payment payment2 = createPayment(user,order,"pay-20250213132349-6573",50000L);
         Payment payment3 = createPayment(user,order,"pay-20250213132349-6574",50000L);
@@ -72,7 +125,7 @@ public class PaymentRepositoryTest {
     void findByPaymentKey() {
         //given
         User user = createUser("momo");
-        Order order = createOrder(user, "ord-20250213132349-6572", 50000L);
+        Order order = createOrder(user, "ord-20250213132349-6572", "pay-20250213132349-6572", 50000L);
         Payment payment1 = createPayment(user,order,"pay-20250213132349-6572",50000L);
         Payment payment2 = createPayment(user,order,"pay-20250213132349-6573",50000L);
         Payment payment3 = createPayment(user,order,"pay-20250213132349-6574",50000L);
@@ -97,7 +150,7 @@ public class PaymentRepositoryTest {
 
         //given
         User user = createUser("momo");
-        Order order = createOrder(user, "ord-20250213132349-6572", 50000L);
+        Order order = createOrder(user, "ord-20250213132349-6572", "pay-20250213132349-6572", 50000L);
         Payment payment1 = createPayment(user,order,"pay-20250213132349-6572",50000L);
         Payment payment2 = createPayment(user,order,"pay-20250213132349-6573",50000L);
         Payment payment3 = createPayment(user,order,"pay-20250213132349-6574",50000L);
@@ -128,15 +181,15 @@ public class PaymentRepositoryTest {
                 .cellPhone("01051212121")
                 .birth(LocalDate.of(1990, 1, 1))
                 .profileImage("ss")
-                .flag(true)
                 .build();
     }
 
-    private Order createOrder(User user, String tossOrderId, Long amount) {
+    private Order createOrder(User user, String tossOrderId, String paymentKey, Long amount) {
         return Order.builder()
                 .tossOrderId(tossOrderId)
                 .orderedAt(LocalDateTime.now())
                 .totalAmount(amount)
+                .paymentId(paymentKey)
                 .user(user)
                 .cancelStatus(CancelStatus.NONE)
                 .expirationTime(LocalDateTime.now().plusDays(1))
