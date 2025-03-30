@@ -48,6 +48,7 @@ public class CategoryServiceImpl implements CategoryService {
         return path;
     }
 
+    @Cacheable(value = "categoryPaths", key = "#id")
     @Override
     public List<String> getCategoryPath(Long id) {
         Category category = categoryRepository.findById(id)

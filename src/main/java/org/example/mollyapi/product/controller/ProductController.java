@@ -68,16 +68,10 @@ public class ProductController {
             @RequestParam Long offsetId,
             @RequestParam int size
     ) {
-        long first = 0;
-        long second = 0;
-        long startTime = System.currentTimeMillis(); // 시작 시간 기록
         PageRequest pageRequest = PageRequest.of(0, size);
 
         ProductFilterCondition condition = convertToProductFilterCondition(conditionReqDto, null);
-        long endTime = System.currentTimeMillis(); // 종료 시간 기록
-        first = endTime - startTime;
         Slice<ProductResDto> products = productReadService.getAllProducts(condition, pageRequest, offsetId);
-        long startTime2 = System.currentTimeMillis(); // 시작 시간 기록
         Long lastElementId = !products.getContent().isEmpty() ? products.getContent().get(products.getContent().size() - 1).id() : null;
 
         if (products.getContent().isEmpty()) {
@@ -86,9 +80,6 @@ public class ProductController {
 
         ListResDto listResDto = new ListResDto(PageResDto.of(products, lastElementId), products.getContent());
 
-        long endTime2 = System.currentTimeMillis(); // 종료 시간 기록
-        long seconds = endTime2 - startTime2;
-        log.info("first : {}, seconds : {}", first, seconds);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(listResDto);
