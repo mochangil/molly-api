@@ -15,6 +15,7 @@ import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.repository.ProductRepository;
 import org.example.mollyapi.product.service.CategoryService;
 import org.example.mollyapi.product.service.ProductReadService;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -33,6 +34,7 @@ public class ProductReadServiceImpl implements ProductReadService {
     private final CategoryService categoryService;
     private final ProductRepository productRepository;
 
+    @Cacheable(value = "productList", key = "#condition.toString() + '_' + #pageable.pageNumber + '_' + #offsetId")
     @Override
     public Slice<ProductResDto> getAllProducts(ProductFilterCondition condition, Pageable pageable, Long offsetId) {
         if (condition == null) {
@@ -48,15 +50,7 @@ public class ProductReadServiceImpl implements ProductReadService {
         if (offsetId == null) {
             offsetId = 0L;
         }
-
-        long startTime = System.currentTimeMillis(); // 시작 시간 기록
         Slice<ProductAndThumbnailDto> page = productRepository.findByCondition(condition, pageable, offsetId);
-        long endTime = System.currentTimeMillis(); // 종료 시간 기록
-
-        long totalTime = endTime - startTime;
-        if (totalTime > 400) {
-            log.info("Execution Time is {} ms", totalTime);
-        }
         return page.map(this::convertToProductResDto);
     }
 
