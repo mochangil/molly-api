@@ -77,12 +77,9 @@ public class ProductController {
         if (products.getContent().isEmpty()) {
             return ResponseEntity.noContent().build();
         }
-
-        ListResDto listResDto = new ListResDto(PageResDto.of(products, lastElementId), products.getContent());
-
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(listResDto);
+                .body(new ListResDto(PageResDto.of(products, lastElementId), products.getContent()));
     }
 
     @Auth
