@@ -25,7 +25,7 @@ public class Category extends Base {
     @JoinColumn(name = "parent_id")
     Category parent;
 
-    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Category> children = new ArrayList<>();  // 자식 카테고리 리스트
 
     Long level;
