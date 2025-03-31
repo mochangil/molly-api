@@ -157,13 +157,13 @@ public class PaymentServiceImpl implements PaymentService {
         paymentRepository.save(payment);
 
 ////         2. toss payments API 호출 (멱등성 헤더 추가하기)
-        ResponseEntity<TossConfirmResDto> response = tossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
-                requestDto.paymentKey(),
-                requestDto.amount()));
-        // 2. mock toss payment API
-//        ResponseEntity<TossConfirmResDto> response = mockTossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
+//        ResponseEntity<TossConfirmResDto> response = tossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
 //                requestDto.paymentKey(),
 //                requestDto.amount()));
+//         2. mock toss payment API
+        ResponseEntity<TossConfirmResDto> response = mockTossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
+                requestDto.paymentKey(),
+                requestDto.amount()));
 
         // 3. 응답 검증
         // pending -> 자동 재시도, fail -> 수동 재시도, approve -> 완료
