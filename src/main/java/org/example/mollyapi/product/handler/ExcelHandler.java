@@ -84,7 +84,7 @@ public class ExcelHandler extends DefaultHandler {
         if ("row".equals(qName)) {
             int rowNumber = Integer.parseInt(currentRow.get(0));
 
-            if (rowNumber == 1 || currentRow.size() <= 9) {
+            if (rowNumber == 1 || currentRow.size() < 9) {
                 log.warn("유효하지 않은 row 감지 - rowNumber: {}, current_row_size: {}", rowNumber, currentRow.size());
                 return;
             }

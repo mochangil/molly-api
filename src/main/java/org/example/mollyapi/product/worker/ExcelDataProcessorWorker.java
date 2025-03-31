@@ -12,8 +12,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.example.mollyapi.common.exception.CustomException;
-import org.example.mollyapi.common.exception.error.CustomError;
-import org.example.mollyapi.common.exception.error.impl.ProductError;
 import org.example.mollyapi.common.exception.error.impl.ProductItemError;
 import org.example.mollyapi.common.util.TimeUtil;
 import org.example.mollyapi.product.dto.ExcelProductDto;
@@ -21,7 +19,7 @@ import org.example.mollyapi.product.dto.request.ProductBulkItemReqDto;
 import org.example.mollyapi.product.dto.request.ProductBulkReqDto;
 import org.example.mollyapi.product.mapper.ProductItemMapper;
 import org.example.mollyapi.product.mapper.ProductMapper;
-import org.springframework.transaction.annotation.Transactional;
+
 
 @Slf4j
 public class ExcelDataProcessorWorker implements Runnable {
@@ -103,12 +101,9 @@ public class ExcelDataProcessorWorker implements Runnable {
                     passedProduct.clear();
                     passedProductItem.clear();
                 }
-
-
             }
 
             if (!passedProductItem.isEmpty()) {
-
                 saveProductByMybatis(userId, passedProduct, passedProductItem);
                 log.info(" {} 데이터 {} 개 삽입 완료", Thread.currentThread().getName(),
                     passedProductItem.size());
