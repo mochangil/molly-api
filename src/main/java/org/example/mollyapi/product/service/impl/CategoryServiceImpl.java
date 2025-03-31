@@ -51,9 +51,12 @@ public class CategoryServiceImpl implements CategoryService {
     // @Cacheable(value = "categoryPaths", key = "#id")
     @Override
     public List<String> getCategoryPath(Long id) {
+        long startTime = System.currentTimeMillis(); 
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new CustomException(NOT_EXIST_CATEGORY));
-
+        long endTime = System.currentTimeMillis();
+        time = endTime - startTime;
+        log.info("get category path : {} ms", time);
         return getCategoryPath(category);
     }
 
