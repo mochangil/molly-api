@@ -7,6 +7,8 @@ import org.example.mollyapi.common.exception.CustomException;
 import org.example.mollyapi.common.exception.error.impl.PaymentError;
 import org.example.mollyapi.common.exception.error.impl.UserError;
 import org.example.mollyapi.order.entity.Order;
+import org.example.mollyapi.order.event.V2.EventFutureType;
+import org.example.mollyapi.order.event.V2.annotation.HandleFutureEvent;
 import org.example.mollyapi.order.event.V2.event.order.OrderPreProcessEvent;
 import org.example.mollyapi.order.repository.OrderRepository;
 import org.example.mollyapi.payment.util.AESUtil;
@@ -28,6 +30,7 @@ public class PointEventHandler {
 
     @EventListener
     @Async("preProcessOrderExecutor")
+    @HandleFutureEvent(EventFutureType.POINT)
     @Transactional
     public void handleOrderPreProcessEvent(OrderPreProcessEvent event) {
         User user = userRepository.findById(event.userId())

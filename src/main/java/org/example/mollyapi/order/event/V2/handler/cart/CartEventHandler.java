@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.mollyapi.cart.repository.CartRepository;
 import org.example.mollyapi.order.entity.Order;
 import org.example.mollyapi.order.entity.OrderDetail;
+import org.example.mollyapi.order.event.V2.EventFutureType;
+import org.example.mollyapi.order.event.V2.annotation.HandleFutureEvent;
 import org.example.mollyapi.order.event.V2.event.order.OrderProcessEvent;
 import org.example.mollyapi.order.repository.OrderRepository;
 import org.springframework.context.event.EventListener;
@@ -22,6 +24,7 @@ public class CartEventHandler {
 
     @EventListener
     @Async("processOrderExecutor")
+    @HandleFutureEvent(EventFutureType.CART)
     @Transactional
     public void handleOrderProcessEvent(OrderProcessEvent event) {
         Order order = orderRepository.findByTossOrderId(event.tossOrderId())

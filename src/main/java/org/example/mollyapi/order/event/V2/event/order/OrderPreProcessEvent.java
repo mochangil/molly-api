@@ -4,4 +4,4 @@ public record OrderPreProcessEvent(
         Long userId,
         String tossOrderId,
         String point
-){ }
+) implements BaseEvent { }

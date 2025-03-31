@@ -608,7 +608,7 @@ public class OrderServiceImplV0 {
         publisher.publishEvent(new OrderProcessEvent(userId, tossOrderId, deliveryInfo, paymentConfirmReqDto));
 
         ///  4. order Process 후 처리
-        publisher.publishEvent(new OrderPostProcessEvent());
+        publisher.publishEvent(new OrderPostProcessEvent(tossOrderId));
 
         return null;
     }
