@@ -30,7 +30,6 @@ public class SignInService {
      * @return JWT
      */
     public SignInResDto signIn(SignInReqDto signInReqDto){
-        log.info("email = {}, password = {}", signInReqDto.email(), signInReqDto.password());
         Auth auth = authRepository.findByEmail(signInReqDto.email())
                 .orElseThrow(() -> new CustomException(NOT_MATCH_AUTH));
 
