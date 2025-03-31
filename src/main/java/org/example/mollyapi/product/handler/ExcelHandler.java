@@ -2,34 +2,22 @@ package org.example.mollyapi.product.handler;
 
 import com.github.f4b6a3.tsid.TsidCreator;
 import java.util.concurrent.BlockingQueue;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xssf.eventusermodel.ReadOnlySharedStringsTable;
-import org.apache.poi.xssf.model.StylesTable;
-import org.example.mollyapi.product.dto.request.ProductBulkItemReqDto;
-import org.example.mollyapi.product.dto.request.ProductBulkReqDto;
-import org.example.mollyapi.product.mapper.ProductItemMapper;
-import org.example.mollyapi.product.mapper.ProductMapper;
 import org.xml.sax.Attributes;
-import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
-
-import static org.example.mollyapi.product.dto.request.ProductBulkItemReqDto.createBulkProductItemReqDto;
 
 @Slf4j
 public class ExcelHandler extends DefaultHandler {
 
     // 병렬 처리 큐
     private final ReadOnlySharedStringsTable sharedStringsTable;
-    private final BlockingQueue<List<String>> blockQueue;
+    private final BlockingQueue<List<String>> rowDataQueue;
 
-    private Long firstProductItemId;
-    private Long lastProductItemId;
+    @Getter
     private final List<List<Long>> productItemIds = new ArrayList<>();
 
     // 현재 행의 데이터 저장 (각 셀의 문자열 값)
@@ -40,10 +28,10 @@ public class ExcelHandler extends DefaultHandler {
 
 
     public ExcelHandler(
-        BlockingQueue<List<String>> blockQueue,
+        BlockingQueue<List<String>> rowDataQueue,
         ReadOnlySharedStringsTable sharedStringsTable) {
         this.sharedStringsTable = sharedStringsTable;
-        this.blockQueue = blockQueue;
+        this.rowDataQueue = rowDataQueue;
     }
 
     @Override
@@ -97,6 +85,7 @@ public class ExcelHandler extends DefaultHandler {
             int rowNumber = Integer.parseInt(currentRow.get(0));
 
             if (rowNumber == 1 || currentRow.size() < 9) {
+                log.warn("유효하지 않은 row 감지 - rowNumber: {}, current_row_size: {}", rowNumber, currentRow.size());
                 return;
             }
 
@@ -106,8 +95,9 @@ public class ExcelHandler extends DefaultHandler {
 
                 productItemIds.add(List.of(tsid, (long) rowNumber));
 
-                blockQueue.put(new ArrayList<>(currentRow)); // 큐에 행 데이터 추가
+                rowDataQueue.put(new ArrayList<>(currentRow)); // 큐에 행 데이터 추가
             } catch (InterruptedException e) {
+                log.error("큐 삽입 중 인터럽트 발생 Error Message : {}", e.getMessage());
                 Thread.currentThread().interrupt();
             }
 
@@ -116,16 +106,18 @@ public class ExcelHandler extends DefaultHandler {
     }
 
     @Override
-    public void startDocument() throws SAXException {
-        log.info("문서 파싱 시작했다요");
+    public void startDocument(){
+        try{
+            log.info("Start : RowDataQueue_Size = {}", rowDataQueue.size());
+        } catch (Exception e){
+            log.error(" Excel Parsing Error : {} ", e.getMessage());
+        }
+
     }
 
     @Override
     public void endDocument() {
-        log.info("문서 파싱 끝났다요");
+        log.info("End : RowDataQueue_Size = {}", rowDataQueue.size());
     }
 
-    public List<List<Long>> getProductItemIds(){
-        return productItemIds;
-    }
 }
