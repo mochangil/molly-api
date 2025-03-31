@@ -38,25 +38,20 @@ public class CategoryServiceImpl implements CategoryService {
     public List<String> getCategoryPath(Category category) {
         List<String> path = new ArrayList<>();
 
-        // 루프를 통해 카테고리의 족보를 찾음
         while (category != null) {
-            path.add(category.getCategoryName());  // 현재 카테고리 이름을 추가
-            category = category.getParent();  // 부모 카테고리로 이동
+            path.add(category.getCategoryName());
+            category = category.getParent();
         }
 
         Collections.reverse(path);
         return path;
     }
 
-    // @Cacheable(value = "categoryPaths", key = "#id")
+    @Cacheable(value = "categoryPaths", key = "#id")
     @Override
     public List<String> getCategoryPath(Long id) {
-        long startTime = System.currentTimeMillis(); 
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new CustomException(NOT_EXIST_CATEGORY));
-        long endTime = System.currentTimeMillis();
-        long time = endTime - startTime;
-        log.info("get category path : {} ms", time);
         return getCategoryPath(category);
     }
 
@@ -92,9 +87,9 @@ public class CategoryServiceImpl implements CategoryService {
         return categoryList.stream().filter((category) -> isEndWith(category, categories)).toList();
     }
 
-    // @Cacheable(value = "categories", key = "#categoryName")
+    @Cacheable(value = "categories", key = "#categoryName")
     public List<Category> findByCategoryName(String categoryName) {
-        // log.info("findByCategoryName at DB: {}", categoryName);
+        log.info("findByCategoryName at DB: {}", categoryName);
         return categoryRepository.findByCategoryName(categoryName);
     }
 
