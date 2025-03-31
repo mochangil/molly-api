@@ -18,6 +18,7 @@ import org.example.mollyapi.product.service.ProductBulkService;
 import org.example.mollyapi.product.worker.ExcelDataProcessorWorker;
 import org.example.mollyapi.user.service.UserService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
@@ -34,10 +35,10 @@ import static org.xml.sax.helpers.XMLReaderFactory.*;
 @RequiredArgsConstructor
 public class ProductBulkServiceImpl implements ProductBulkService {
 
+    private final static int THREAD_NUMBER = 1;
     private final ProductMapper productMapper;
     private final ProductItemMapper productItemMapper;
     private final UserService userService;
-
 
     public BlockingQueue<Map<String, String>> saveChunkOfBulkProducts(MultipartFile file,
         Long userId) {
@@ -46,7 +47,8 @@ public class ProductBulkServiceImpl implements ProductBulkService {
 
         BlockingQueue<Map<String, String>> errorQueue = new LinkedBlockingQueue<>();
         BlockingQueue<List<String>> rowDataQueue = new LinkedBlockingQueue<>();
-        ExecutorService executorService = Executors.newFixedThreadPool(4);
+        ExecutorService executorService = Executors.newFixedThreadPool(THREAD_NUMBER);
+
 
         try (OPCPackage pkg = OPCPackage.open(file.getInputStream())) {
 
@@ -60,7 +62,7 @@ public class ProductBulkServiceImpl implements ProductBulkService {
             parser.setContentHandler(handler);
             Iterator<InputStream> sheets = reader.getSheetsData();
 
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < THREAD_NUMBER; i++) {
                 executorService.submit(new ExcelDataProcessorWorker(
                     userId,
                     productItemMapper,
@@ -87,7 +89,6 @@ public class ProductBulkServiceImpl implements ProductBulkService {
         } finally {
             endThread(rowDataQueue, executorService);
         }
-
         return errorQueue;
     }
 
@@ -95,7 +96,7 @@ public class ProductBulkServiceImpl implements ProductBulkService {
         ExecutorService executorService
     ) {
         try {
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < THREAD_NUMBER; i++) {
                 rowDataQueue.put(Collections.emptyList());
             }
 
@@ -128,7 +129,6 @@ public class ProductBulkServiceImpl implements ProductBulkService {
         productItemIds.parallelStream()
             .filter(id -> !savedProductItemIds.contains(id.get(0)))
             .forEach(id -> {
-
                 Map<String, String> errorMap = new HashMap<>();
                 errorMap.put("행", String.valueOf(id.get(1)));
                 errorQueue.add(errorMap);

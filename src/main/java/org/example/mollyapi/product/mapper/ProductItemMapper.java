@@ -12,6 +12,7 @@ import java.util.List;
 public interface ProductItemMapper {
 
     void insertProductItems(@Param("productItems") List<ProductBulkItemReqDto> productItems,
+        @Param("userId") long userId,
         @Param("now") LocalDateTime now);
 
     Set<Long> findProductIdsByIds(@Param("startId") Long startId, @Param("endId") Long endId);

@@ -23,12 +23,11 @@ import org.example.mollyapi.product.mapper.ProductItemMapper;
 import org.example.mollyapi.product.mapper.ProductMapper;
 import org.springframework.transaction.annotation.Transactional;
 
-
 @Slf4j
 public class ExcelDataProcessorWorker implements Runnable {
 
     private static final Pattern HEX_PATTERN = Pattern.compile("^#([A-Fa-f0-9]{6})$");
-    private static final int BATCH_SIZE = 10000;
+    private static final int BATCH_SIZE = 2000;
     private final ProductItemMapper productItemMapper;
     private final ProductMapper productMapper;
 
@@ -58,7 +57,8 @@ public class ExcelDataProcessorWorker implements Runnable {
         try {
             while (true) {
 
-                List<String> row = queue.poll(1, TimeUnit.SECONDS);
+                List<String> row = queue.poll(500, TimeUnit.MILLISECONDS);
+
                 if (row == null) {
                     log.info(" {} 대기 중 현재 큐가 비어 있음 ", Thread.currentThread());
                     continue;
@@ -181,15 +181,20 @@ public class ExcelDataProcessorWorker implements Runnable {
         ProductBulkItemReqDto productBulkItemReqDto = null;
 
         if (!passedProduct.isEmpty()) {
-            for (ProductBulkReqDto dto : passedProduct) {
-                if (dto.getProductName().equals(excelProductDto.getProductName())) {
+            for (ProductBulkReqDto productBulkReqDto : passedProduct) {
+                if (productBulkReqDto.getProductName().equals(excelProductDto.getProductName())) {
                     productBulkItemReqDto = createBulkProductItemReqDto(
                         excelProductDto.getItemId(),
-                        dto.getId(),
+                        productBulkReqDto.getId(),
                         excelProductDto.getColor(),
                         excelProductDto.getColorCode(),
                         excelProductDto.getQuantity(),
-                        excelProductDto.getSize()
+                        excelProductDto.getSize(),
+                        0L,
+                        0L,
+                        excelProductDto.getCategoryId(),
+                        excelProductDto.getPrice(),
+                        excelProductDto.getBrandName()
                     );
                     existProduct = true;
                     break;
@@ -211,7 +216,12 @@ public class ExcelDataProcessorWorker implements Runnable {
                 excelProductDto.getColor(),
                 excelProductDto.getColorCode(),
                 excelProductDto.getQuantity(),
-                excelProductDto.getSize()
+                excelProductDto.getSize(),
+                0L,
+                0L,
+                excelProductDto.getCategoryId(),
+                excelProductDto.getPrice(),
+                excelProductDto.getBrandName()
             );
             passedProduct.add(productBulkReqDto);
         }
@@ -222,16 +232,16 @@ public class ExcelDataProcessorWorker implements Runnable {
      * 유효성이 검사된 데이터에 한해 DB에 저장
      *
      * @param userId            상품을 등록하려는 사용자
-     * @param passedProduct     유효성이 검사된 상품 데이터
-     * @param passedProductItem 유효성이 검사된 상품 옵션 데이터
+     * @param passedProducts     유효성이 검사된 상품 데이터
+     * @param passedProductItems 유효성이 검사된 상품 옵션 데이터
      */
-    // 실제 DTO 생성 로직으로 대체l
-    protected void saveProductByMybatis(Long userId, List<ProductBulkReqDto> passedProduct,
-        List<ProductBulkItemReqDto> passedProductItem) {
-
+    // 실제 DTO 생성 로직으로 대체
+    public void saveProductByMybatis(Long userId, List<ProductBulkReqDto> passedProducts,
+        List<ProductBulkItemReqDto> passedProductItems) {
+        log.info("product size : {}, item.size: {}", passedProducts.size(), passedProductItems.size());
         LocalDateTime now = new TimeUtil().getNow();
-        productMapper.insertProducts(passedProduct, userId, now);
-        productItemMapper.insertProductItems(passedProductItem, now);
+        productMapper.insertProducts(passedProducts, userId, now);
+        productItemMapper.insertProductItems(passedProductItems, userId, now);
     }
 
 

@@ -1,10 +1,7 @@
 package org.example.mollyapi.product.dto.request;
 
-import com.github.f4b6a3.tsid.TsidCreator;
 import lombok.Builder;
 import lombok.Getter;
-import org.example.mollyapi.product.entity.Product;
-import org.example.mollyapi.product.entity.ProductItem;
 
 @Getter
 public class ProductBulkItemReqDto {
@@ -21,15 +18,31 @@ public class ProductBulkItemReqDto {
 
     private final long itemId;
 
+    private final long viewCount;
+
+    private final long purchaseCount;
+
+    private final long categoryId;
+
+    private final long price;
+
+    private final String brandName;
+
     @Builder
-    public ProductBulkItemReqDto(long itemId, long productId, String color, String colorCode,
-        long quantity, String size) {
-        this.itemId = itemId;
+    public ProductBulkItemReqDto(long productId, String color, String colorCode, long quantity,
+        String size, long itemId, long viewCount, long purchaseCount, long categoryId, long price,
+        String brandName) {
         this.productId = productId;
         this.color = color;
         this.colorCode = colorCode;
         this.quantity = quantity;
         this.size = size;
+        this.itemId = itemId;
+        this.viewCount = viewCount;
+        this.purchaseCount = purchaseCount;
+        this.categoryId = categoryId;
+        this.price = price;
+        this.brandName = brandName;
     }
 
     public static ProductBulkItemReqDto createBulkProductItemReqDto(long itemId,
@@ -37,7 +50,12 @@ public class ProductBulkItemReqDto {
         String color,
         String colorCode,
         long quantity,
-        String size) {
+        String size,
+        long viewCount,
+        long purchaseCount,
+        long categoryId,
+        long price,
+        String brandName) {
         return ProductBulkItemReqDto.builder()
             .itemId(itemId)
             .productId(productBulkReqDtoId)
@@ -45,6 +63,11 @@ public class ProductBulkItemReqDto {
             .colorCode(colorCode)
             .quantity(quantity)
             .size(size)
+            .viewCount(viewCount)
+            .purchaseCount(purchaseCount)
+            .categoryId(categoryId)
+            .price(price)
+            .brandName(brandName)
             .build();
     }
 }

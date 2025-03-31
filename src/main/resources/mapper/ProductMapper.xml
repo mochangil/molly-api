@@ -4,13 +4,13 @@
 <mapper namespace="org.example.mollyapi.product.mapper.ProductMapper">
 
     <insert id="insertProducts">
-        INSERT IGNORE INTO product (product_id, product_name, description, brand_name, view_count, user_id,
-        price, category_id, purchase_count, created_at, updated_at)
-        VALUES
-        <foreach collection="products" item="product" separator=",">
-            (#{product.id}, #{product.productName}, #{product.description}, #{product.brandName},
-            0, #{userId}, #{product.price}, #{product.categoryId}, 0, #{now}, #{now})
-        </foreach>
+      INSERT IGNORE INTO product (product_id, product_name, description, brand_name, view_count,
+      user_id, price, category_id, purchase_count, created_at, updated_at)
+      VALUES
+      <foreach collection="products" item="product" separator=",">
+        (#{product.id}, #{product.productName}, #{product.description}, #{product.brandName},
+        0, #{userId}, #{product.price}, #{product.categoryId}, 0, #{now}, #{now})
+      </foreach>
     </insert>
 
 </mapper>
