@@ -48,7 +48,7 @@ public class CategoryServiceImpl implements CategoryService {
         return path;
     }
 
-    @Cacheable(value = "categoryPaths", key = "#id")
+    // @Cacheable(value = "categoryPaths", key = "#id")
     @Override
     public List<String> getCategoryPath(Long id) {
         Category category = categoryRepository.findById(id)
@@ -89,9 +89,9 @@ public class CategoryServiceImpl implements CategoryService {
         return categoryList.stream().filter((category) -> isEndWith(category, categories)).toList();
     }
 
-    @Cacheable(value = "categories", key = "#categoryName")
+    // @Cacheable(value = "categories", key = "#categoryName")
     public List<Category> findByCategoryName(String categoryName) {
-        log.info("findByCategoryName at DB: {}", categoryName);
+        // log.info("findByCategoryName at DB: {}", categoryName);
         return categoryRepository.findByCategoryName(categoryName);
     }
 
