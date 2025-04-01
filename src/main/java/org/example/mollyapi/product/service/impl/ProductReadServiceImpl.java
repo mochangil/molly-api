@@ -34,7 +34,7 @@ public class ProductReadServiceImpl implements ProductReadService {
     private final CategoryService categoryService;
     private final ProductRepository productRepository;
 
-    // @Cacheable(value = "productList", key = "#condition.toString() + '_' + #pageable.pageSize + '_' + #offsetId")
+    @Cacheable(value = "productList", key = "#condition.toString() + '_' + #pageable.pageSize + '_' + #offsetId")
     @Override
     public Slice<ProductResDto> getAllProducts(ProductFilterCondition condition, Pageable pageable, Long offsetId) {
         if (condition == null) {
