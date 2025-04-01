@@ -74,11 +74,6 @@ dependencies {
     testImplementation 'org.projectlombok:lombok:1.18.28'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.28'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-    // eh cache manager
-    implementation 'org.springframework.boot:spring-boot-starter-cache'
-    implementation 'org.ehcache:ehcache::jakarta'
-
 }
 
 tasks.named('test') {
