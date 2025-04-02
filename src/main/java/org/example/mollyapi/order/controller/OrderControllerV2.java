@@ -48,4 +48,29 @@ public class OrderControllerV2 {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 주문 결제 요청
+     */
+    @Auth
+    @PostMapping("/{orderId}/payment2")
+    @Operation(summary = "주문 결제 요청 API", description = "주문에 대한 결제 요청 및 성공/실패 처리")
+    public ResponseEntity<PaymentResDto> processPayment2(
+            HttpServletRequest request,
+            @Valid @RequestBody OrderConfirmRequestDto orderConfirmRequestDto) {
+
+        Long userId = (Long) request.getAttribute("userId");
+
+        PaymentResDto response = orderProcessServiceV2.processOrder2(
+                userId,
+                orderConfirmRequestDto.paymentKey(),
+                orderConfirmRequestDto.tossOrderId(),
+                orderConfirmRequestDto.amount(),
+                orderConfirmRequestDto.point(),
+                orderConfirmRequestDto.paymentType(),
+                orderConfirmRequestDto.delivery()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
 }

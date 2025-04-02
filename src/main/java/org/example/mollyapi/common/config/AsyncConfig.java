@@ -14,8 +14,8 @@ public class AsyncConfig {
     public Executor preProcessOrderExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(10);
-        executor.setMaxPoolSize(50);
-        executor.setQueueCapacity(100);
+        executor.setMaxPoolSize(100);
+        executor.setQueueCapacity(150);
         executor.setThreadNamePrefix("preProcessOrderExecutor Async-");
         // 설정 적용
         executor.initialize();
@@ -26,8 +26,8 @@ public class AsyncConfig {
     public Executor processOrderExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(10);
-        executor.setMaxPoolSize(50);
-        executor.setQueueCapacity(100);
+        executor.setMaxPoolSize(200);
+        executor.setQueueCapacity(250);
         executor.setThreadNamePrefix("processOrderExecutor Async-");
         // 설정 적용
         executor.initialize();
@@ -38,8 +38,8 @@ public class AsyncConfig {
     public Executor paymentExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(10);
-        executor.setMaxPoolSize(50);
-        executor.setQueueCapacity(100);
+        executor.setMaxPoolSize(100);
+        executor.setQueueCapacity(150);
         executor.setThreadNamePrefix("paymentExecutor Async-");
         // 설정 적용
         executor.initialize();

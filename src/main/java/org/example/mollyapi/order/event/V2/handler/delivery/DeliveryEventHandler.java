@@ -8,6 +8,8 @@ import org.example.mollyapi.common.exception.error.impl.PaymentError;
 import org.example.mollyapi.delivery.entity.Delivery;
 import org.example.mollyapi.delivery.repository.DeliveryRepository;
 import org.example.mollyapi.order.entity.Order;
+import org.example.mollyapi.order.event.V2.EventFutureType;
+import org.example.mollyapi.order.event.V2.annotation.HandleFutureEvent;
 import org.example.mollyapi.order.event.V2.event.order.OrderProcessEvent;
 import org.example.mollyapi.order.repository.OrderRepository;
 import org.springframework.context.event.EventListener;
@@ -24,6 +26,7 @@ public class DeliveryEventHandler {
 
     @EventListener
     @Async("processOrderExecutor")
+    @HandleFutureEvent(EventFutureType.DELIVERY)
     @Transactional
     public void handleOrderProcessEvent(OrderProcessEvent event) {
 

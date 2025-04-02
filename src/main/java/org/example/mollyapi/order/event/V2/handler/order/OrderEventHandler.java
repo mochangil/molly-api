@@ -1,7 +1,9 @@
 package org.example.mollyapi.order.event.V2.handler.order;
 
 import lombok.RequiredArgsConstructor;
-import org.example.mollyapi.common.exception.CustomException;
+import lombok.extern.slf4j.Slf4j;
+import org.example.mollyapi.order.event.V2.EventFutureType;
+import org.example.mollyapi.order.event.V2.annotation.HandleFutureEvent;
 import org.example.mollyapi.order.event.V2.event.order.OrderInitiateEvent;
 import org.example.mollyapi.order.service.OrderServiceImplV0;
 import org.example.mollyapi.payment.event.event.PaymentApprovedEvent;
@@ -15,6 +17,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.concurrent.CompletableFuture;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class OrderEventHandler {
@@ -23,6 +26,7 @@ public class OrderEventHandler {
 
     @EventListener
     @Async("preProcessOrderExecutor")
+    @HandleFutureEvent(EventFutureType.INITIATE_ORDER)
     @Transactional
     public void handleOrderInitiateEvent(OrderInitiateEvent event) {
         System.out.println("Order Initiate Event");
@@ -32,12 +36,14 @@ public class OrderEventHandler {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async("paymentExecutor")
+    @HandleFutureEvent(EventFutureType.SUCCESS_ORDER)
     public void handlePaymentApprovedEvent(PaymentApprovedEvent event) {
         orderServiceImplV0.successOrder(event.tossOrderId(),event.tossPaymentKey());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async("paymentExecutor")
+    @HandleFutureEvent(EventFutureType.FAIL_ORDER)
     public void handlePaymentFailedEvent(PaymentFailedEvent event) {
 //        orderServiceImplV0.failOrder();
     }

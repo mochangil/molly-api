@@ -21,9 +21,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class OrderEventBlockingQueue {
+public class OrderEventBlockingQueueV2 {
 
-    private final BlockingQueue<Object> eventQueue = new LinkedBlockingQueue<>(1000);
+    private final BlockingQueue<Object> eventQueue = new LinkedBlockingQueue<>(1000);;
     private Thread consumerThread;
     private volatile boolean running = true;
 
@@ -36,29 +36,33 @@ public class OrderEventBlockingQueue {
 
     @PostConstruct
     public void startConsumer() {
-        consumerThread = new Thread(() -> {
-            while (running) {
-                try {
-                    System.out.println(Thread.currentThread().getName() + ": Consumer thread started");
-                    Object event = eventQueue.take(); // 큐에서 이벤트를 순서대로 가져옴
-                    // 이벤트의 타입에 따라 적절한 핸들러 호출
-                    if (event instanceof OrderInitiateEvent) {
-                        orderEventHandler.handleOrderInitiateEvent((OrderInitiateEvent) event);
-                    } else if (event instanceof OrderPreProcessEvent) {
-                        stockEventHandler.handleOrderPreProcessingEvent((OrderPreProcessEvent) event);
-                        pointEventHandler.handleOrderPreProcessEvent((OrderPreProcessEvent) event);
-                    } else if (event instanceof OrderProcessEvent) {
-                        cartEventHandler.handleOrderProcessEvent((OrderProcessEvent) event);
-                        deliveryEventHandler.handleOrderProcessEvent((OrderProcessEvent) event);
-                        paymentEventHandler.handleOrderProcessEvent((OrderProcessEvent) event);
+        int numberOfConsumers = 4; // 병렬 소비자 개수 설정
+        for (int i = 0; i < numberOfConsumers; i++) {
+            new Thread(() -> {
+                while (running) {
+                    try {
+                        Object event = eventQueue.take();
+                        processEvent(event);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
                     }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
                 }
-            }
-        });
-        consumerThread.start();
+            }).start();
+        }
+    }
+    public void processEvent(Object event) {
+        // 이벤트의 타입에 따라 적절한 핸들러 호출
+        if (event instanceof OrderInitiateEvent) {
+            orderEventHandler.handleOrderInitiateEvent((OrderInitiateEvent) event);
+        } else if (event instanceof OrderPreProcessEvent) {
+            stockEventHandler.handleOrderPreProcessingEvent((OrderPreProcessEvent) event);
+            pointEventHandler.handleOrderPreProcessEvent((OrderPreProcessEvent) event);
+        } else if (event instanceof OrderProcessEvent) {
+            cartEventHandler.handleOrderProcessEvent((OrderProcessEvent) event);
+            deliveryEventHandler.handleOrderProcessEvent((OrderProcessEvent) event);
+            paymentEventHandler.handleOrderProcessEvent((OrderProcessEvent) event);
+        }
     }
 
     @PreDestroy

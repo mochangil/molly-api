@@ -38,7 +38,7 @@ public class PaymentWebClientUtil {
         Map<String, String> headers = new HashMap<>();
         headers.put("Authorization", "Basic " + Base64.getEncoder().encodeToString((apiKey + ":").getBytes()));
         headers.put("Content-Type", "application/json");
-
+        System.out.println("confirmPayment" + (request.paymentKey()));
         try {
             return webClientUtil.post(
                     confirmUrl,

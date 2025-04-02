@@ -106,13 +106,21 @@ public class PaymentServiceImpl implements PaymentService {
 
         Order order = orderRepository.findByTossOrderId(requestDto.tossOrderId())
                 .orElseThrow(() -> new CustomException(PaymentError.ORDER_NOT_FOUND));
+
+        System.out.println("Order's tossOrderId = " + order.getId() +
+                "\nPayment's paymentId = " + order.getPaymentId());
+
+
         // 1. 결제 엔티티 생성
         Payment payment = createPayment(userId, order.getId(), requestDto.tossOrderId(), requestDto.paymentKey(), requestDto.paymentType(), requestDto.amount());
 
+        System.out.println("Payment's paymentKey = " + payment.getPaymentKey());
+
         // 2. toss payments API 호출
-        ResponseEntity<TossConfirmResDto> response = tossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
-                requestDto.paymentKey(),
-                requestDto.amount()));
+        ResponseEntity<TossConfirmResDto> response = tossPaymentApi(new TossConfirmReqDto(requestDto.paymentKey()
+                ,requestDto.tossOrderId()
+                ,requestDto.amount())
+        );
 
         // 2. mock payments API
 //        ResponseEntity<TossConfirmResDto> response = mockTossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
@@ -122,7 +130,9 @@ public class PaymentServiceImpl implements PaymentService {
         // 3. 응답 검증
         // pending -> 자동 재시도, fail -> 수동 재시도, approve -> 완료
         switch (getStatusCodeToString(response)) {
-            case "200" -> payment.approvePayment();
+            case "200" -> {
+                payment.approvePayment();
+            }
             case "400" -> {
                 payment.failPayment("결제 실패");
                 paymentSaveService.persistPayment(payment);
@@ -157,13 +167,13 @@ public class PaymentServiceImpl implements PaymentService {
         paymentRepository.save(payment);
 
 ////         2. toss payments API 호출 (멱등성 헤더 추가하기)
-        ResponseEntity<TossConfirmResDto> response = tossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
-                requestDto.paymentKey(),
-                requestDto.amount()));
-        // 2. mock toss payment API
-//        ResponseEntity<TossConfirmResDto> response = mockTossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
+//        ResponseEntity<TossConfirmResDto> response = tossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
 //                requestDto.paymentKey(),
 //                requestDto.amount()));
+//         2. mock toss payment API
+        ResponseEntity<TossConfirmResDto> response = mockTossPaymentApi(new TossConfirmReqDto(requestDto.tossOrderId(),
+                requestDto.paymentKey(),
+                requestDto.amount()));
 
         // 3. 응답 검증
         // pending -> 자동 재시도, fail -> 수동 재시도, approve -> 완료
@@ -314,15 +324,16 @@ public class PaymentServiceImpl implements PaymentService {
         Toss 결제 요청 API 호출 (결제 승인)
      */
     private ResponseEntity<TossConfirmResDto> tossPaymentApi(TossConfirmReqDto tossConfirmReqDto) {
+        System.out.println("tossConfirmReqDto.paymentKey = " + tossConfirmReqDto.paymentKey());
         return paymentWebClientUtil.confirmPayment(tossConfirmReqDto, apiKey);
     }
 
     private ResponseEntity<TossConfirmResDto> mockTossPaymentApi(TossConfirmReqDto tossConfirmReqDto) {
-        try {
-            Thread.sleep(500);
-        }catch (InterruptedException e){
-            e.printStackTrace();
-        }
+//        try {
+//            Thread.sleep(500);
+//        }catch (InterruptedException e){
+//            e.printStackTrace();
+//        }
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 

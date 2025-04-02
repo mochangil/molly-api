@@ -10,5 +10,5 @@ public record OrderProcessEvent(
         String tossOrderId,
         DeliveryReqDto deliveryInfo,
         PaymentConfirmReqDto paymentConfirmReqDto
-){
+) implements BaseEvent {
 }

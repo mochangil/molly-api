@@ -4,8 +4,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.mollyapi.common.exception.CustomException;
 import org.example.mollyapi.common.exception.error.impl.PaymentError;
+import org.example.mollyapi.common.exception.error.impl.ProductItemError;
 import org.example.mollyapi.order.entity.Order;
 import org.example.mollyapi.order.entity.OrderDetail;
+import org.example.mollyapi.order.event.V2.EventFutureType;
+import org.example.mollyapi.order.event.V2.annotation.HandleFutureEvent;
 import org.example.mollyapi.order.event.V2.event.order.OrderPreProcessEvent;
 import org.example.mollyapi.order.repository.OrderRepository;
 import org.example.mollyapi.product.entity.ProductItem;
@@ -23,20 +26,40 @@ public class StockEventHandler {
 
     private final OrderRepository orderRepository;
     private final ProductItemRepository productItemRepository;
+    private final StockService stockService;
 
     @EventListener
     @Async("preProcessOrderExecutor")
+    @HandleFutureEvent(EventFutureType.STOCK)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleOrderPreProcessingEvent(OrderPreProcessEvent event) {
 
         Order order = orderRepository.findByTossOrderId(event.tossOrderId())
                         .orElseThrow(()-> new CustomException(PaymentError.ORDER_NOT_FOUND));
-
         for (OrderDetail detail : order.getOrderDetails()) {
             ProductItem productItem = productItemRepository.findByIdWithLock(detail.getProductItem().getId())
                     .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. itemId=" + detail.getProductItem().getId()));
 
             productItem.decreaseStock(detail.getQuantity());
+        }
+    }
+
+    @Async("preProcessOrderExecutor")
+    @HandleFutureEvent(EventFutureType.STOCK)
+    @Transactional
+    public void handleOrderPreProcessEvent(OrderPreProcessEvent event) {
+
+        Order order = orderRepository.findByTossOrderId(event.tossOrderId())
+                .orElseThrow(() -> new CustomException(PaymentError.ORDER_NOT_FOUND));
+
+        for (OrderDetail detail : order.getOrderDetails()) {
+            ProductItem productItem = productItemRepository.findById(detail.getProductItem().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. itemId=" + detail.getProductItem().getId()));
+
+            boolean success = stockService.processOrder(productItem.getId(),detail.getQuantity());
+            if (!success) {
+                throw new CustomException(ProductItemError.SOLD_OUT);
+            }
         }
     }
 }
