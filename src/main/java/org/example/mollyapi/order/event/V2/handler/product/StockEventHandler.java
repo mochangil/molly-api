@@ -26,7 +26,7 @@ public class StockEventHandler {
 
     private final OrderRepository orderRepository;
     private final ProductItemRepository productItemRepository;
-    private final StockService stockService;
+//    private final StockService stockService;
 
     @EventListener
     @Async("preProcessOrderExecutor")
@@ -44,22 +44,22 @@ public class StockEventHandler {
         }
     }
 
-    @Async("preProcessOrderExecutor")
-    @HandleFutureEvent(EventFutureType.STOCK)
-    @Transactional
-    public void handleOrderPreProcessEvent(OrderPreProcessEvent event) {
-
-        Order order = orderRepository.findByTossOrderId(event.tossOrderId())
-                .orElseThrow(() -> new CustomException(PaymentError.ORDER_NOT_FOUND));
-
-        for (OrderDetail detail : order.getOrderDetails()) {
-            ProductItem productItem = productItemRepository.findById(detail.getProductItem().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. itemId=" + detail.getProductItem().getId()));
-
-            boolean success = stockService.processOrder(productItem.getId(),detail.getQuantity());
-            if (!success) {
-                throw new CustomException(ProductItemError.SOLD_OUT);
-            }
-        }
-    }
+//    @Async("preProcessOrderExecutor")
+//    @HandleFutureEvent(EventFutureType.STOCK)
+//    @Transactional
+//    public void handleOrderPreProcessEvent(OrderPreProcessEvent event) {
+//
+//        Order order = orderRepository.findByTossOrderId(event.tossOrderId())
+//                .orElseThrow(() -> new CustomException(PaymentError.ORDER_NOT_FOUND));
+//
+//        for (OrderDetail detail : order.getOrderDetails()) {
+//            ProductItem productItem = productItemRepository.findById(detail.getProductItem().getId())
+//                    .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. itemId=" + detail.getProductItem().getId()));
+//
+//            boolean success = stockService.processOrder(productItem.getId(),detail.getQuantity());
+//            if (!success) {
+//                throw new CustomException(ProductItemError.SOLD_OUT);
+//            }
+//        }
+//    }
 }
