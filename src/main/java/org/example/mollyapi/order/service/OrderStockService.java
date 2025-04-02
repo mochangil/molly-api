@@ -21,8 +21,8 @@ public class OrderStockService {
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
 
-    //    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    @Transactional(propagation = Propagation.REQUIRED) // 기존 트랜잭션을 유지
+        @Transactional(propagation = Propagation.REQUIRES_NEW)
+//    @Transactional(propagation = Propagation.REQUIRED) // 기존 트랜잭션을 유지
     public void validateBeforePayment(Long orderId) {
         System.out.println("----------------------------------재고 트랜잭션 시작----------------------------------");
         log.info("orderId = {}", orderId);

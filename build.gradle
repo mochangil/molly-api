@@ -74,6 +74,11 @@ dependencies {
     testImplementation 'org.projectlombok:lombok:1.18.28'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.28'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+//    implementation 'io.github.resilience4j:resilience4j-spring-boot3'
 }
 
 tasks.named('test') {

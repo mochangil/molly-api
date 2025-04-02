@@ -6,11 +6,8 @@ import org.example.mollyapi.common.exception.CustomException;
 import org.example.mollyapi.common.exception.error.impl.OrderError;
 import org.example.mollyapi.common.exception.error.impl.PaymentError;
 import org.example.mollyapi.delivery.dto.DeliveryReqDto;
-import org.example.mollyapi.order.event.V2.EventFutureRegistry;
-import org.example.mollyapi.order.event.V2.EventFutureType;
-import org.example.mollyapi.order.event.V2.OrderEventBlockingQueue;
+import org.example.mollyapi.order.event.V2.*;
 import org.example.mollyapi.order.entity.Order;
-import org.example.mollyapi.order.event.V2.PaymentEventBlockingQueue;
 import org.example.mollyapi.order.event.V2.event.order.OrderInitiateEvent;
 import org.example.mollyapi.order.event.V2.event.order.OrderPostProcessEvent;
 import org.example.mollyapi.order.event.V2.event.order.OrderPreProcessEvent;
@@ -40,14 +37,12 @@ public class OrderProcessServiceV2 {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final OrderEventBlockingQueue orderEventBlockingQueue;
+    private final OrderEventBlockingQueueV2 orderEventBlockingQueueV2;
     private final PaymentEventHandler paymentEventHandler;
     private final EventFutureRegistry eventFutureRegistry;
 
     // 후보 1
     public PaymentResDto processOrder(Long userId, String paymentKey, String tossOrderId, Long amount, String point, String paymentType, DeliveryReqDto deliveryInfo) {
-
-        // 이벤트 큐를 통해 순차적으로 이벤트 발행
-        System.out.println("event start");
 
         CompletableFuture<Void> orderInitiateFuture = eventFutureRegistry.registerFuture(EventFutureType.INITIATE_ORDER, tossOrderId);
         orderEventBlockingQueue.publishEvent(new OrderInitiateEvent(tossOrderId));
@@ -67,6 +62,7 @@ public class OrderProcessServiceV2 {
             stockFuture.get(40, TimeUnit.SECONDS);
             pointFuture.get(40, TimeUnit.SECONDS);
         } catch (TimeoutException | InterruptedException | ExecutionException e) {
+            e.printStackTrace();
             throw new CustomException(OrderError.PAYMENT_RETRY_REQUIRED);
         }
 
@@ -76,7 +72,6 @@ public class OrderProcessServiceV2 {
         orderEventBlockingQueue.publishEvent(new OrderProcessEvent(userId, tossOrderId, deliveryInfo, paymentConfirmReqDto));
         orderEventBlockingQueue.publishEvent(new OrderPostProcessEvent(tossOrderId));
         try {
-            // 5. paymentFuture가 완료될 때까지 블로킹으로 대기합니다.
             PaymentResDto paymentResDto = paymentFuture.get(40, TimeUnit.SECONDS);
             if(paymentResDto.paymentStatus().equals("결제승인")){
                 return paymentResDto;
@@ -88,13 +83,58 @@ public class OrderProcessServiceV2 {
             // paymentFailed 보상트랜잭션
             throw new CustomException(PaymentError.PAYMENT_FAILED);
         } catch (InterruptedException | ExecutionException e) {
-            // 예외 처리: 필요에 따라 재시도 로직이나 로깅 처리
-            // PaymentFailed 보상트랜잭션
             e.printStackTrace();
             throw new CustomException(PaymentError.PAYMENT_FAILED);
         }
     }
 
+
+
+    public PaymentResDto processOrder2(Long userId, String paymentKey, String tossOrderId, Long amount, String point, String paymentType, DeliveryReqDto deliveryInfo) {
+
+        CompletableFuture<Void> orderInitiateFuture = eventFutureRegistry.registerFuture(EventFutureType.INITIATE_ORDER, tossOrderId);
+        orderEventBlockingQueueV2.publishEvent(new OrderInitiateEvent(tossOrderId));
+        try{
+            orderInitiateFuture.get(40, TimeUnit.SECONDS);
+        } catch (TimeoutException | InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            throw new CustomException(OrderError.PAYMENT_RETRY_REQUIRED);
+        }
+
+        //payment 결과 future 등록
+        //stock, point
+        CompletableFuture<Void> stockFuture = eventFutureRegistry.registerFuture(EventFutureType.STOCK, tossOrderId);
+        CompletableFuture<Void> pointFuture = eventFutureRegistry.registerFuture(EventFutureType.POINT, tossOrderId);
+        orderEventBlockingQueueV2.publishEvent(new OrderPreProcessEvent(userId, tossOrderId, point));
+        try{
+            stockFuture.get(40, TimeUnit.SECONDS);
+            pointFuture.get(40, TimeUnit.SECONDS);
+        } catch (TimeoutException | InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            throw new CustomException(OrderError.PAYMENT_RETRY_REQUIRED);
+        }
+
+        //cart, delivery, payment
+        PaymentConfirmReqDto paymentConfirmReqDto = getPaymentConfirmReqDto(tossOrderId,paymentKey,amount, paymentType);
+        CompletableFuture<PaymentResDto> paymentFuture = paymentEventHandler.registerPaymentFuture(tossOrderId);
+        orderEventBlockingQueueV2.publishEvent(new OrderProcessEvent(userId, tossOrderId, deliveryInfo, paymentConfirmReqDto));
+        orderEventBlockingQueueV2.publishEvent(new OrderPostProcessEvent(tossOrderId));
+        try {
+            PaymentResDto paymentResDto = paymentFuture.get(40, TimeUnit.SECONDS);
+            if(paymentResDto.paymentStatus().equals("결제승인")){
+                return paymentResDto;
+            }else {
+                throw new CustomException(OrderError.PAYMENT_RETRY_REQUIRED);
+            }
+        } catch (TimeoutException e){
+            System.out.println("결제 처리 시간이 초과되었습니다.");
+            // paymentFailed 보상트랜잭션
+            throw new CustomException(PaymentError.PAYMENT_FAILED);
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            throw new CustomException(PaymentError.PAYMENT_FAILED);
+        }
+    }
     private PaymentConfirmReqDto getPaymentConfirmReqDto(String tossOrderId, String paymentKey, Long amount, String paymentType) {
         return new PaymentConfirmReqDto(
                 tossOrderId,paymentKey,amount,paymentType,0
