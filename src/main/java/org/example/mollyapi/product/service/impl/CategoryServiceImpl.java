@@ -1,11 +1,15 @@
 package org.example.mollyapi.product.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.mollyapi.common.exception.CustomException;
 import org.example.mollyapi.common.exception.error.impl.CategoryError;
 import org.example.mollyapi.product.entity.Category;
 import org.example.mollyapi.product.repository.CategoryRepository;
 import org.example.mollyapi.product.service.CategoryService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -15,36 +19,39 @@ import java.util.List;
 
 import static org.example.mollyapi.common.exception.error.impl.CategoryError.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
+
+    @Autowired
+    private ApplicationContext applicationContext;
 
     private final CategoryRepository categoryRepository;
 
     @Override
     public List<Category> findByName(String name) {
-        return categoryRepository.findByCategoryName(name);
+        return findByCategoryName(name);
     }
 
     @Override
     public List<String> getCategoryPath(Category category) {
         List<String> path = new ArrayList<>();
 
-        // 루프를 통해 카테고리의 족보를 찾음
         while (category != null) {
-            path.add(category.getCategoryName());  // 현재 카테고리 이름을 추가
-            category = category.getParent();  // 부모 카테고리로 이동
+            path.add(category.getCategoryName());
+            category = category.getParent();
         }
 
         Collections.reverse(path);
         return path;
     }
 
+    @Cacheable(value = "categoryPaths", key = "#id")
     @Override
     public List<String> getCategoryPath(Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new CustomException(NOT_EXIST_CATEGORY));
-
         return getCategoryPath(category);
     }
 
@@ -74,9 +81,16 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         String end = categories.get(categories.size() - 1);
-        List<Category> categoryList = categoryRepository.findByCategoryName(end);
+        CategoryServiceImpl self = applicationContext.getBean(CategoryServiceImpl.class);
+        List<Category> categoryList = self.findByCategoryName(end);
 
         return categoryList.stream().filter((category) -> isEndWith(category, categories)).toList();
+    }
+
+    @Cacheable(value = "categories", key = "#categoryName")
+    public List<Category> findByCategoryName(String categoryName) {
+        log.info("findByCategoryName at DB: {}", categoryName);
+        return categoryRepository.findByCategoryName(categoryName);
     }
 
     private Boolean isEndWith(Category category, List<String> categories) {

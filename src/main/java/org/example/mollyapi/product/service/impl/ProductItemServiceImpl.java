@@ -40,8 +40,9 @@ public class ProductItemServiceImpl {
             product.addItem(item);
         }
 
-        List<ProductItem> saved = productItemRepository.saveAll(items);
-        return saved.stream().map(ProductItemDto::of).toList();
+//        List<ProductItem> saved = productItemRepository.saveAll(items);
+//        return saved.stream().map(ProductItemDto::of).toList();
+        return items.stream().map(ProductItemDto::of).toList();
     }
 
     @Transactional

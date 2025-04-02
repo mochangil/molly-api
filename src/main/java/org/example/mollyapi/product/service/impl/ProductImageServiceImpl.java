@@ -46,8 +46,9 @@ public class ProductImageServiceImpl {
             product.addImage(image);
         }
 
-        List<ProductImage> productImageList = productImageRepository.saveAll(productImages);
+//        List<ProductImage> productImageList = productImageRepository.saveAll(productImages);
 
-        return productImageList.stream().map(ProductImageDto::of).toList();
+//        return productImageList.stream().map(ProductImageDto::of).toList();
+        return productImages.stream().map(ProductImageDto::of).toList();
     }
 }

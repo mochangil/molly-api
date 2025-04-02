@@ -33,13 +33,12 @@ import static org.xml.sax.helpers.XMLReaderFactory.*;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class ProductBulkServiceImpl implements ProductBulkService {
 
+    private final static int THREAD_NUMBER = 1;
     private final ProductMapper productMapper;
     private final ProductItemMapper productItemMapper;
     private final UserService userService;
-
 
     public BlockingQueue<Map<String, String>> saveChunkOfBulkProducts(MultipartFile file,
         Long userId) {
@@ -48,7 +47,8 @@ public class ProductBulkServiceImpl implements ProductBulkService {
 
         BlockingQueue<Map<String, String>> errorQueue = new LinkedBlockingQueue<>();
         BlockingQueue<List<String>> rowDataQueue = new LinkedBlockingQueue<>();
-        ExecutorService executorService = Executors.newFixedThreadPool(4);
+        ExecutorService executorService = Executors.newFixedThreadPool(THREAD_NUMBER);
+
 
         try (OPCPackage pkg = OPCPackage.open(file.getInputStream())) {
 
@@ -62,7 +62,7 @@ public class ProductBulkServiceImpl implements ProductBulkService {
             parser.setContentHandler(handler);
             Iterator<InputStream> sheets = reader.getSheetsData();
 
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < THREAD_NUMBER; i++) {
                 executorService.submit(new ExcelDataProcessorWorker(
                     userId,
                     productItemMapper,
@@ -86,11 +86,9 @@ public class ProductBulkServiceImpl implements ProductBulkService {
         } catch (Exception e) {
             log.error("service error Message : {}", e.getMessage());
             throw new CustomException(PROBLEM_REGISTERING_BULK_PRODUCTS);
-
         } finally {
             endThread(rowDataQueue, executorService);
         }
-
         return errorQueue;
     }
 
@@ -98,18 +96,16 @@ public class ProductBulkServiceImpl implements ProductBulkService {
         ExecutorService executorService
     ) {
         try {
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < THREAD_NUMBER; i++) {
                 rowDataQueue.put(Collections.emptyList());
             }
 
             executorService.shutdown();
-            boolean terminated = executorService.awaitTermination(60, TimeUnit.SECONDS);
 
-            if (!terminated || !rowDataQueue.isEmpty()) {
-                log.warn("[WARNING] 처리되지 않은 데이터가 큐에 남아 있습니다: {}건", rowDataQueue.size());
-
+            if (!executorService.awaitTermination(600, TimeUnit.SECONDS)) {
+                log.info("아직 쓰레드가 끝나지 않았습니다.");
+                executorService.shutdownNow();
             }
-
             return true;
         } catch (InterruptedException e) {
             log.error("Error Message : {}", e.getMessage());
@@ -117,25 +113,28 @@ public class ProductBulkServiceImpl implements ProductBulkService {
             rowDataQueue.clear();
             throw new CustomException(PROBLEM_REGISTERING_BULK_PRODUCTS);
         }
-
     }
 
     private void checkedFailSaveProduct(List<List<Long>> productItemIds,
         BlockingQueue<Map<String, String>> errorQueue) {
         long start = System.nanoTime();
 
-        Set<Long> savedProductItemIds = productItemMapper.getProductsByIdRangeSet(
-            productItemIds.get(0).get(0),
-            productItemIds.get(productItemIds.size() - 1).get(0));
+        Long startId = productItemIds.get(0).get(0);
+        Long endId = productItemIds.get(productItemIds.size() - 1).get(0);
 
-        productItemIds.stream()
-            .filter(id->!savedProductItemIds.contains(id.get(0)))
-            .forEach(id->{
+        Set<Long> savedProductItemIds = productItemMapper.findProductIdsByIds(
+            startId, endId);
+
+        log.info("savedProductItemIds size : {}", savedProductItemIds.size());
+        productItemIds.parallelStream()
+            .filter(id -> !savedProductItemIds.contains(id.get(0)))
+            .forEach(id -> {
                 Map<String, String> errorMap = new HashMap<>();
                 errorMap.put("행", String.valueOf(id.get(1)));
                 errorQueue.add(errorMap);
             });
+
         long end = System.nanoTime();
-        log.info("메소드 걸린 시간 {} ms ", (end - start)/ 1_000_000.0);
+        log.info("메소드 걸린 시간 {} ms ", (end - start) / 1_000_000.0);
     }
 }

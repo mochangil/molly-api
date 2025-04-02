@@ -2,6 +2,7 @@ package org.example.mollyapi.product.service.impl;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.mollyapi.product.dto.ProductAndThumbnailDto;
 import org.example.mollyapi.product.dto.ProductFilterCondition;
 import org.example.mollyapi.product.dto.ProductItemDto;
@@ -14,6 +15,7 @@ import org.example.mollyapi.product.entity.ProductItem;
 import org.example.mollyapi.product.repository.ProductRepository;
 import org.example.mollyapi.product.service.CategoryService;
 import org.example.mollyapi.product.service.ProductReadService;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProductReadServiceImpl implements ProductReadService {
@@ -31,6 +34,7 @@ public class ProductReadServiceImpl implements ProductReadService {
     private final CategoryService categoryService;
     private final ProductRepository productRepository;
 
+    // @Cacheable(value = "productList", key = "#condition.toString() + '_' + #pageable.pageSize + '_' + #offsetId")
     @Override
     public Slice<ProductResDto> getAllProducts(ProductFilterCondition condition, Pageable pageable, Long offsetId) {
         if (condition == null) {
@@ -46,9 +50,7 @@ public class ProductReadServiceImpl implements ProductReadService {
         if (offsetId == null) {
             offsetId = 0L;
         }
-
         Slice<ProductAndThumbnailDto> page = productRepository.findByCondition(condition, pageable, offsetId);
-
         return page.map(this::convertToProductResDto);
     }
 

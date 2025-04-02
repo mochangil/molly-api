@@ -48,25 +48,6 @@ class ProductBulkJdbcRepositoryTest {
             .build();
     }
 
-    private static ProductBulkReqDto createProductBulkReqDto(String productName, long categoryId) {
-        return ProductBulkReqDto.builder()
-            .productName(productName)
-            .brandName("방밥다망함")
-            .price(12834L)
-            .description("ABCDERQWSOFKSLEMFMSLALSASKFJMELFG:A")
-            .categoryId(categoryId)
-            .build();
-    }
-
-    private static ProductBulkItemReqDto createProductBulkItemReqDto(Long productId, String color,
-        String colorCold, String size) {
-        return ProductBulkItemReqDto.builder()
-            .productId(productId)
-            .color(color)
-            .colorCode(colorCold)
-            .size(size)
-            .build();
-    }
 
 }
 

@@ -24,7 +24,7 @@ public class LoggingInterceptor implements HandlerInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
         final int queryCount = apiQueryCounter.getCount();
 
-        log.info( QUERY_COUNT_LOG_FORMAT ,request.getRequestURI(), queryCount);
+        // log.info( QUERY_COUNT_LOG_FORMAT ,request.getRequestURI(), queryCount);
 
         if (queryCount >= 100) {
             log.warn(QUERY_COUNT_WARNING_LOG_FORMAT, queryCount);

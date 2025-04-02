@@ -70,13 +70,13 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
         // 서브쿼리 조건 추가 및 toString
         String subQueryString = subQuery
                 .appendConditions()
-                .appendCategoryId(condition != null ? condition.categoryId() : null)
-                .appendPriceGoe(condition != null  ? condition.priceGoe(): null)
-                .appendPriceLt(condition != null ? condition.priceLt() : null)
+                .appendSellerId(condition != null ? condition.sellerId() : null)
                 .appendBrandName(condition != null ? condition.brandName() : null)
                 .appendColorCode(condition != null ? condition.colorCode() : null)
+                .appendCategoryId(condition != null ? condition.categoryId() : null)
                 .appendSize(condition != null ? condition.size() : null)
-                .appendSellerId(condition != null ? condition.sellerId() : null)
+                .appendPriceGoe(condition != null  ? condition.priceGoe(): null)
+                .appendPriceLt(condition != null ? condition.priceLt() : null)
                 .appendExcludeSoldOut(condition != null ? condition.excludeSoldOut() : null)
 
                 .appendOrderAndLimit()
