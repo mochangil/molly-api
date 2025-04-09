@@ -1,13 +1,8 @@
 **패션을 쉽게 MollyMol**
-
 ---
 
-### 🛒 서비스 바로가기
-
-https://mollymol.com/
 
 ### **📽️ 시연 영상**
-
 https://drive.google.com/file/d/13Jez_t-zlCY9VO-dskcfzjaCsl4pcMxr/view
 
 <br>
@@ -31,13 +26,6 @@ https://drive.google.com/file/d/13Jez_t-zlCY9VO-dskcfzjaCsl4pcMxr/view
 <br>
 
 
-### 팀 구성
-
----
-
-**프론트엔드**: 진종환, 최세은
-
-**백엔드**: 이지은, 김정환, 모창일, 이제윤
 
 <br>
 
@@ -72,30 +60,6 @@ https://drive.google.com/file/d/13Jez_t-zlCY9VO-dskcfzjaCsl4pcMxr/view
 ![image](https://github.com/user-attachments/assets/d9ddd0fa-e303-4643-a723-b88219edd958)
 
 <br>
-
-### 🗺️ 프론트엔드 아키텍처
-
----
-
-![image](https://github.com/user-attachments/assets/eda493f6-6069-42db-8ce1-811e84083eb2)
-
-
-<br>
-
-### 🎞️ 와이어프레임
-
----
-
-![image](https://github.com/user-attachments/assets/cca35677-13ef-4991-9f9b-ab23a22c79c7)
-
-<br>
-
-### 🧑‍🤝‍🧑 협업
-
----
-
-![image](https://github.com/user-attachments/assets/c636d5a7-bbc6-4f2f-9f0b-239c29359a7e)
-
 
 <br>
 
@@ -140,6 +104,9 @@ https://drive.google.com/file/d/13Jez_t-zlCY9VO-dskcfzjaCsl4pcMxr/view
 
 <br>
 
+### **🌈 개선 사항**
+
+
 ### **🚀 트러블 슈팅**
 
-### **🌈 개선 사항**
+
