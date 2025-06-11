@@ -171,4 +171,8 @@ public class Order {
     public boolean isCanceled(){
         return status.equals(OrderStatus.CANCELED);
     }
+
+    public boolean isExpired(){
+        return expirationTime.isBefore(LocalDateTime.now());
+    }
 }
