@@ -75,6 +75,14 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.28'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+    // kafka
+    implementation 'org.springframework.kafka:spring-kafka'
+    // kafka streams
+    implementation 'org.apache.kafka:kafka-streams'
+
+    // redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
 
 //    implementation 'io.github.resilience4j:resilience4j-spring-boot3'
 }
