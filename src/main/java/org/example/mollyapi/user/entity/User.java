@@ -3,6 +3,9 @@ package org.example.mollyapi.user.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.example.mollyapi.common.entity.Base;
+import org.example.mollyapi.common.exception.CustomException;
+import org.example.mollyapi.common.exception.error.impl.OrderError;
+import org.example.mollyapi.common.exception.error.impl.UserError;
 import org.example.mollyapi.user.dto.UpdateUserReqDto;
 import org.example.mollyapi.user.type.Sex;
 
@@ -90,6 +93,14 @@ public class User extends Base {
             this.point = 0;
         }
         this.point += amount;
+    }
+
+    public void deductPoint(int amount) {
+        if (this.point - amount < 0){
+            throw new CustomException(OrderError.INSUFFICIENT_POINT);
+        } else{
+            this.point -= amount;
+        };
     }
 
 }
