@@ -10,6 +10,7 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 @SuperBuilder
 public abstract class BaseFailMessage {
+    Long userId;
     String tossOrderId;
     String failMessage;
 }
