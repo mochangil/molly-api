@@ -13,8 +13,9 @@ public class DeliveryServiceV4 {
 
     @KafkaListener(topics = {
             "order.completed.v1"
-    }, groupId = "delivery-process-group")
+    }, groupId = "delivery-process-group",
+    containerFactory = "orderCompletedContainerFactory")
     public void deliveryProcess(OrderCompletedMessage message){
-        log.info("success");
+        log.info("DeliveryService : OrderCompletedMessage has received");
     }
 }
