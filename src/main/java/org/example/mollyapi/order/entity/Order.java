@@ -88,7 +88,7 @@ public class Order {
     @PrePersist
     protected void onCreate() {
         this.orderedAt = LocalDateTime.now();
-        this.expirationTime = this.orderedAt.plusMinutes(10);
+        this.expirationTime = this.orderedAt.plusMinutes(30);
     }
 
     public void updateStatus(OrderStatus newStatus) {
@@ -96,6 +96,15 @@ public class Order {
             throw new IllegalStateException("이미 실패 또는 취소된 주문은 상태를 변경할 수 없습니다.");
         }
         this.status = newStatus;
+    }
+
+    public void failed(String reason){
+        this.status = OrderStatus.FAILED;
+//        this.failReason = reason;
+    }
+
+    public void completed(){
+        this.status = OrderStatus.SUCCEEDED;
     }
 
     public void updateCancelStatus(CancelStatus newCancelStatus) {
@@ -133,6 +142,13 @@ public class Order {
         this.paymentId = paymentKey;
         this.paymentAmount = amount;
         this.paymentType = paymentType;
+    }
+
+    public void registerOrderInfo(String paymentId, Long amount, String paymentType, Integer pointUsage) {
+        this.paymentId = paymentId;
+        this.totalAmount = amount;
+        this.paymentType = paymentType;
+        this.pointUsage = pointUsage;
     }
 
     public void addPayment(Payment payment) {

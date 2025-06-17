@@ -18,6 +18,7 @@ import org.example.mollyapi.order.repository.OrderRepository;
 import org.example.mollyapi.order.v4.dto.request.OrderRequestDto;
 import org.example.mollyapi.order.v4.dto.response.OrderResponseDto;
 import org.example.mollyapi.order.v4.event.message.fail.OrderValidateFailMessage;
+import org.example.mollyapi.order.v4.event.message.suceess.OrderCompletedMessage;
 import org.example.mollyapi.order.v4.event.message.suceess.OrderValidateSuccessMessage;
 import org.example.mollyapi.order.v4.redis.RedisService;
 import org.example.mollyapi.product.entity.ProductItem;
@@ -26,6 +27,7 @@ import org.example.mollyapi.user.entity.User;
 import org.example.mollyapi.user.repository.UserRepository;
 import org.example.mollyapi.user.service.UserService;
 
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -77,15 +79,6 @@ public class OrderServiceV4 {
     }
 
 
-    private String generateUniqueTossOrderId() {
-
-        String tossOrderId;
-        do {
-            tossOrderId = "ORD-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + "-" + new Random().nextInt(9000);
-        } while(orderRepository.existsByTossOrderId(tossOrderId));
-
-        return tossOrderId;
-    }
 
 
     /**
@@ -99,7 +92,7 @@ public class OrderServiceV4 {
         }
 
         Long itemId = (cart != null) ? cart.getProductItem().getId() : req.itemId();
-        Long quantity = (cart != null) ? cart.getQuantity() : req.quantity();
+        Long quantity = req.quantity();
 
         // itemId 및 quantity 검증
         if (itemId == null) {
@@ -137,41 +130,87 @@ public class OrderServiceV4 {
 
     public void initiateOrder(Long userId, OrderConfirmRequestDto req) {
 
-        // 정보 저장 (주문정보, 배송정보 등)
-//        redisService.save(req);
+        // 주문정보 저장 (주문정보, 배송정보 등)
+        // todo - RDBMS 대신 캐시 저장소등 사용하기
+
 
         // 1. 사용자 검증
-        try{userService.validUser(userId);}
-        catch (CustomException e){
+        try{
+            userService.validUser(userId);
+            Order order = validateOrder(req.tossOrderId());
+            order.registerOrderInfo(req.paymentKey(),req.amount(),req.paymentType(),Integer.valueOf(req.point()));
+
+            orderRepository.save(order);
+            OrderValidateSuccessMessage message = OrderValidateSuccessMessage.builder()
+                    .userId(userId)
+                    .tossOrderId(req.tossOrderId())
+                    .build();
+
+            kafkaProducer.produce("order.validated.v1", message);
+            log.info("produced = {}", message.getTossOrderId());
+
+        } catch (CustomException e){
             handleFailure(req.tossOrderId(),e.getMessage());
         }
-
-        // 2. 주문 검증
-        Order order = orderRepository.findByTossOrderIdWithDetails(req.tossOrderId())
-                .orElse(null);
-
-        System.out.println(order.getId());
-        if(order == null){
-            handleFailure(req.tossOrderId(), OrderError.NOT_EXIST_ORDER.getMessage());
-        }
-
-        // 2-1. 주문의 상태 검증
-        if(!order.isPending()) {
-            handleFailure(req.tossOrderId(), OrderError.INVALID_ORDER.getMessage());
-        };
-
-        // 2-2. 주문 만료시간 검증
-        if(order.isExpired()){
-            handleFailure(req.tossOrderId(), OrderError.EXPIRED_ORDER.getMessage());
-        }
-
-        OrderValidateSuccessMessage message = OrderValidateSuccessMessage.builder()
-                        .tossOrderId(req.tossOrderId())
-                                .build();
-
-        kafkaProducer.produce("order.validated.v1", message);
-        log.info("produced = {}", message.getTossOrderId());
     }
+
+
+    /**
+     *
+     * @param message
+     */
+    @KafkaListener(topics = "order.validate.failed.v1",
+    groupId = "order-fail-group",
+    containerFactory = "orderFailedContainerFactory")
+    public void failOrder(OrderValidateFailMessage message){
+        log.info("OrderService : failed reason = {}", message.getFailMessage());
+        log.info("OrderService : OrderValidateFailMessage has received");
+
+        try{
+            userService.validUser(message.getUserId());
+            Order order = orderRepository.findByTossOrderId(message.getTossOrderId())
+                    .orElseThrow(() -> new CustomException(OrderError.NOT_EXIST_ORDER));
+
+            order.failed(message.getFailMessage());
+            orderRepository.save(order);
+
+        } catch (CustomException ignored){
+        }
+
+    }
+
+
+    /**
+     *
+     * @param message
+     */
+    @KafkaListener(topics = "order.completed.v1",
+    groupId = "order-success-group",
+    containerFactory = "orderCompleteContainerFactory")
+    public void completeOrder(OrderCompletedMessage message){
+        log.info("OrderService : OrderCompleteMessage has received");
+
+        try{
+            Order order = orderRepository.findByTossOrderId(message.getTossOrderId())
+                    .orElseThrow(() -> new CustomException(OrderError.NOT_EXIST_ORDER));
+
+            order.completed();
+            orderRepository.save(order);
+        } catch (CustomException ignored) {
+        }
+    }
+
+
+
+
+    //-------------- 유틸 메서드 -----------------------
+
+    /**
+     *
+     * @param tossOrderId
+     * @param failMessage
+     * 실패시 실패 메시지 발행
+     */
 
     public void handleFailure(String tossOrderId, String failMessage){
         log.error(failMessage);
@@ -180,25 +219,63 @@ public class OrderServiceV4 {
                         .tossOrderId(tossOrderId)
                         .failMessage(failMessage)
                         .build();
-//        kafkaProducer.produce("order.validate.failed.v1",message);
+        kafkaProducer.produce("order.validate.failed.v1",message);
     }
-
-
-    public void rollbackOrder(String tossOrderId){
-
-    }
-
-
-
 
 
     /**
+     *
+     * @param tossOrderId
      * 주문이 시작가능한 상태인지 검증
      */
-    public void validateInitiateOrder(Order order){
+    private Order validateOrder(String tossOrderId){
+        Order order = orderRepository.findByTossOrderIdWithDetails(tossOrderId)
+                .orElseThrow(() -> new CustomException(OrderError.NOT_EXIST_ORDER));
 
-
+        if(!order.isPending()){ throw new CustomException(OrderError.INVALID_ORDER); }
+//        if(order.isExpired()){ throw new CustomException(OrderError.EXPIRED_ORDER); }
+        return order;
     }
+
+
+    /**
+     *
+     * @param tossOrderId
+     * @return
+     * tossOrderId 기반으로 주문 찾기
+     */
+    public Order findByTossOrderId(String tossOrderId){
+        return orderRepository.findByTossOrderId(tossOrderId)
+                .orElseThrow(() -> new CustomException(OrderError.NOT_EXIST_ORDER));
+    }
+
+    /**
+     *
+     * @param tossOrderId
+     * @return
+     * tossOrderId 기반으로 주문과 주문 상세 조회하기
+     */
+    public Order findByTossOrderIdWithDetails(String tossOrderId){
+        return orderRepository.findByTossOrderIdWithDetails(tossOrderId)
+                .orElseThrow(() -> new CustomException(OrderError.NOT_EXIST_ORDER));
+    }
+
+
+    /**
+     *
+     * @return
+     * 유일한 toss주문번호 생성 (중복검증 포함)
+     */
+    private String generateUniqueTossOrderId() {
+
+        String tossOrderId;
+        do {
+            tossOrderId = "ORD-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + "-" + new Random().nextInt(9000);
+        } while(orderRepository.existsByTossOrderId(tossOrderId));
+
+        return tossOrderId;
+    }
+
 
 
 }
